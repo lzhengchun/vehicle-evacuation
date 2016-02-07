@@ -196,7 +196,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
                 + (diff_bk - diff_cap);
    __syncthreads();
    
-// 3rd step, process halo synchronization
+// 3rd step, process halo synchronization!!!! Wrong!!! You can not guarantee cross thread block sync!!! Change device memory belong to other block is not thread safe
     // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
     if(idx == 0){
         cnt[uni_id-1] -= (halo_sync[3][idy] - io[idy][0].y);
