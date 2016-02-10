@@ -73,7 +73,7 @@ __global__ void curand_init_all(unsigned int seed, curandState_t* states, int Ng
 ***********************************************************************************************************
 */
 __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn, 
-                                  int Ngx, int Ngy, int b2r_i, float * d_halo_sync, curandState_t* states) 
+                                  int Ngx, int Ngy, float * d_halo_sync, curandState_t* states) 
 {
     int g_idx = blockIdx.x*blockDim.x + threadIdx.x;
     int g_idy = blockIdx.y*blockDim.y + threadIdx.y;
@@ -241,9 +241,29 @@ __global__ void evacuation_halo_sync(float *cnt, float *cap, float4 *pturn,
     {
         return;
     }    
-    int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
-    int id_helper = blk_uid * (4 * CUDA_BLOCK_SIZE);
-    
+
+    if(idx == 0 && blockIdx.x > 0){                                  // left
+        int id_helper = (blockIdx.y*gridDim.x + blockIdx.x - 1) * (4 * CUDA_BLOCK_SIZE);
+        id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
+        cnt[uni_id] -= d_halo_sync[id_helper];  
+    }      
+    if(idx == CUDA_BLOCK_SIZE-1 && blockIdx.x < gridDim.x-1){        // right
+        int id_helper = (blockIdx.y*gridDim.x + blockIdx.x + 1) * (4 * CUDA_BLOCK_SIZE);
+        id_helper += CUDA_BLOCK_SIZE + threadIdx.y;
+        cnt[uni_id] -= d_halo_sync[id_helper]; 
+    }
+
+    if(idy == 0 && blockIdx.y > 0){                                  // top
+        int id_helper = ( (blockIdx.y-1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
+        id_helper += threadIdx.x;
+        cnt[uni_id] -= d_halo_sync[id_helper]; 
+    }
+
+    if(idy == CUDA_BLOCK_SIZE-1 && blockIdx.y < gridDim.y-1){        // bottom
+        int id_helper = ( (blockIdx.y+1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
+        id_helper += 2*CUDA_BLOCK_SIZE + threadIdx.x;
+        cnt[uni_id] -= d_halo_sync[id_helper]; 
+    }       
     
 }
 /*
