@@ -73,17 +73,18 @@ __global__ void curand_init_all(unsigned int seed, curandState_t* states, int Ng
 ***********************************************************************************************************
 */
 __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn, 
-                                  int Ngx, int Ngy, int b2r_i, curandState_t* states) 
+                                  int Ngx, int Ngy, int b2r_i, float * d_halo_sync, curandState_t* states) 
 {
     int g_idx = blockIdx.x*blockDim.x + threadIdx.x;
     int g_idy = blockIdx.y*blockDim.y + threadIdx.y;
     int uni_id = g_idy * Ngx + g_idx;
+    
     if(g_idx >= Ngx || g_idy >= Ngy)
     {
         return;
     }
     __shared__ float4 io[CUDA_BLOCK_SIZE+2][CUDA_BLOCK_SIZE+2];
-    __shared__ float halo_sync[4][CUDA_BLOCK_SIZE];  // order, N -> E -> S -> W
+    __shared__ float halo_sync[4][CUDA_BLOCK_SIZE];  // order: N -> E -> S -> W
     
     float cnt_temp = cnt[uni_id];
     int idx = threadIdx.x + 1, idy = threadIdx.y + 1;
@@ -196,24 +197,55 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
                 + (diff_bk - diff_cap);
    __syncthreads();
    
-// 3rd step, process halo synchronization!!!! Wrong!!! You can not guarantee cross thread block sync!!! Change device memory belong to other block is not thread safe
+// 3rd step, process halo synchronization!!!! synchronizing via device global memory
     // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
-    if(idx == 0){
-        cnt[uni_id-1] -= (halo_sync[3][idy] - io[idy][0].y);
+    int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
+    int id_helper = blk_uid * (4 * CUDA_BLOCK_SIZE);
+    if(idx == 0){                                // left
+        id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
+        d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;   // number of vehicles which actully go out
     }      
-    if(idx == CUDA_BLOCK_SIZE-1){
-        cnt[uni_id+1] -= (halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w);
+    if(idx == CUDA_BLOCK_SIZE-1){                // right
+        id_helper += CUDA_BLOCK_SIZE + threadIdx.y;
+        d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
     }
 
-    if(idy == 0){
-        cnt[uni_id-Ngx] -= (halo_sync[0][idx] - io[0][idx].z);
+    if(idy == 0){                                // top
+        id_helper += threadIdx.x;
+        d_halo_sync[id_helper] = halo_sync[0][idx] - io[0][idx].z;
     }
 
-    if(idy == CUDA_BLOCK_SIZE-1){
-        cnt[uni_id+Ngx] -= (halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x);
+    if(idy == CUDA_BLOCK_SIZE-1){                // bottom
+        id_helper += 2*CUDA_BLOCK_SIZE + threadIdx.x;
+        d_halo_sync[id_helper] = halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x;
     }       
 }
 
+/*
+***********************************************************************************************************
+* func   name: evacuation_halo_sync
+* description: this GPU kernel function is used to sync cuda block edge.
+* parameters :
+*             none
+* return: none
+* note:   cuda vec 4 type: x->north; y->east; z->south; w->west; 
+***********************************************************************************************************
+*/
+__global__ void evacuation_halo_sync(float *cnt, float *cap, float4 *pturn, 
+                                  int Ngx, int Ngy, int b2r_i, float * d_halo_sync) 
+{
+    int g_idx = blockIdx.x*blockDim.x + threadIdx.x;
+    int g_idy = blockIdx.y*blockDim.y + threadIdx.y;
+    int uni_id = g_idy * Ngx + g_idx;   
+    if(g_idx >= Ngx || g_idy >= Ngy)
+    {
+        return;
+    }    
+    int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
+    int id_helper = blk_uid * (4 * CUDA_BLOCK_SIZE);
+    
+    
+}
 /*
 ***********************************************************************************************************
 * func   name: evacuation_cuda_init
@@ -260,10 +292,20 @@ void evacuation_cuda_finalize()
 * return: none
 ***********************************************************************************************************
 */
-void evacuation_cuda_main(CELL_DT * h_in, int b2r_R, int b2r_D, int Ngx, int Ngy){
-    // Launch configuration:
+void evacuation_cuda_main(CELL_DT * h_in, int b2r_R, int b2r_D, int Ngx, int Ngy, d_helper){
+    // this device memory is used for sync block halo, i.e., halo evacuation
+    float *d_helper;                             // order: north -> east -> south -> west
+    
+    cudaError_t cuda_error;
     dim3 dimBlock(CUDA_BLOCK_SIZE, CUDA_BLOCK_SIZE, 1);
     dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
+    helper_size = 4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y;
+    cuda_error = cudaMalloc((void**)&d_helper, helper_size);
+    if (cuda_error != cudaSuccess)
+    {
+        cout << "CUDA error in cudaMalloc1: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }
     
     evacuation_update<<<grid, block>>>(curand_states, gpu_nums);
 }
