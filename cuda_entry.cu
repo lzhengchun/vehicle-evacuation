@@ -239,6 +239,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
                 + (diff_bk - diff_cap);
         __syncthreads();
     }
+    return;
 // 3rd step, process halo synchronization!!!! synchronizing via device global memory    
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
