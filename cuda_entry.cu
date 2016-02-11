@@ -366,7 +366,7 @@ void write_vehicle_cnt_info(float * p_vcnt)
     for(int r = 0; r < ENV_DIM_Y; r++){
         for(int c = 0; c < ENV_DIM_X; c++){
             int idx = r*ENV_DIM_X+c;
-            output_file << p_cnt[idx] << ","
+            output_file << p_cnt[idx] << ",";
         }
         output_file << endl;
     }    
@@ -381,8 +381,9 @@ void write_vehicle_cnt_info(float * p_vcnt)
 * return: none
 ***********************************************************************************************************
 */
-void main()
+int main()
 {
+    int Ngx = ENV_DIM_X, Ngy = ENV_DIM_Y;
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                             // order: north -> east -> south -> west
     cudaError_t cuda_error;
@@ -393,17 +394,17 @@ void main()
     evacuation_state_init(h_vcnt, h_vcap);
     float *d_vcnt, *d_vcap;
     float4 *d_turn;
-    cuda_error = cudaMalloc((void**)&d_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y]);
+    cuda_error = cudaMalloc((void**)&d_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }
-    cuda_error = cudaMalloc((void**)&d_vcap, sizeof(float)*ENV_DIM_X*ENV_DIM_Y]);
+    cuda_error = cudaMalloc((void**)&d_vcap, sizeof(float)*ENV_DIM_X*ENV_DIM_Y);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }
-    cuda_error = cudaMalloc((void**)&d_turn, sizeof(float4)*ENV_DIM_X*ENV_DIM_Y]);
+    cuda_error = cudaMalloc((void**)&d_turn, sizeof(float4)*ENV_DIM_X*ENV_DIM_Y);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
