@@ -361,6 +361,7 @@ void evacuation_state_init(float *p_cnt, float *p_cap)
 */
 void write_vehicle_cnt_info(float * p_vcnt)
 {
+    ofstream output_file;
     output_file.open("vehicle_cnt_info.txt");
     for(int r = 0; r < ENV_DIM_Y; r++){
         for(int c = 0; c < ENV_DIM_X; c++){
