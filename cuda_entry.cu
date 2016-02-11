@@ -179,7 +179,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
     }
     // then wait untill all the threads in the sam thread block finish their outgoing conut processing
     __syncthreads();  
-    return;
+
 // 2nd step, process incoming vehicles, it will update outgoing requests of neighboors. 
     float diff_cap = cap[uni_id] - cnt_temp;                   // the capacity of incoming vehicles 
     float diff_bk = diff_cap;                                  // save the capacity for computing how many vehicles entered at the end
@@ -190,7 +190,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
     {
         switch(order[rnd][i])
         {
-            case 0:
+            case 0:	                             // enter from top 
                 if(diff_cap > io[idx][idy-1].z)
                 {
                     diff_cap -= io[idx][idy-1].z;
@@ -200,7 +200,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
                     diff_cap = 0.0;
                 }
                 break;
-            case 1:
+            case 1:                              // enter from left
                 if(diff_cap > io[idx+1][idy].w)
                 {
                     diff_cap -= io[idx+1][idy].w;
@@ -210,7 +210,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
                     diff_cap = 0.0;
                 }
                 break;
-            case 2:
+            case 2:                              // enter from bottom
                 if(diff_cap > io[idx][idy+1].x)
                 {
                     diff_cap -= io[idx][idy+1].x;
@@ -220,7 +220,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
                     diff_cap = 0.0;
                 }
                 break;
-            case 3:
+            case 3:                              // enter from right
                 if(diff_cap > io[idx-1][idy].y)
                 {
                     diff_cap -= io[idx-1][idy].y;
