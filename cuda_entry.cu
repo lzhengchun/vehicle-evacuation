@@ -14,11 +14,11 @@
 #include <curand_kernel.h>
 #include <vector_functions.h>
 
-typedef unsigned char uchar;
-
-#define CUDA_BLOCK_SIZE    16
+#define CUDA_BLOCK_SIZE    32
 #define VEHICLE_PER_STEP   1.5
 #define EPS                1e-5
+
+using namespace std;
 /*
 ***********************************************************************************************************
 * 
@@ -241,7 +241,7 @@ __global__ void evacuation_halo_sync(float *cnt, float *cap, float4 *pturn,
     {
         return;
     }    
-
+	int idx = threadIdx.x + 1, idy = threadIdx.y + 1; 
     if(idx == 0 && blockIdx.x > 0){                                  // left
         int id_helper = (blockIdx.y*gridDim.x + blockIdx.x - 1) * (4 * CUDA_BLOCK_SIZE);
         id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
@@ -276,7 +276,7 @@ __global__ void evacuation_halo_sync(float *cnt, float *cap, float4 *pturn,
 * return: none
 ***********************************************************************************************************
 */
-void evacuation_cuda_init(int nthread, int Ngx, int Ngy){
+void evacuation_cuda_init(int Ngx, int Ngy){
     int nthread = Ngx * Ngy;
     // allocate space on the GPU for the random states 
     cudaMalloc((void**) &curand_states, nthread * sizeof(curandState_t));
@@ -286,7 +286,7 @@ void evacuation_cuda_init(int nthread, int Ngx, int Ngy){
     dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
     
     // invoke the GPU to initialize all of the random states 
-    curand_init_all<<<grid, block>>>(time(0), curand_states);
+    curand_init_all<<<dimGrid, dimBlock>>>(time(0), curand_states, Ngx, Ngy);
 }
 /*
 ***********************************************************************************************************
@@ -312,20 +312,19 @@ void evacuation_cuda_finalize()
 * return: none
 ***********************************************************************************************************
 */
-void evacuation_cuda_main(CELL_DT * h_in, int b2r_R, int b2r_D, int Ngx, int Ngy, d_helper){
+void evacuation_cuda_main(int b2r_R, int b2r_D, int Ngx, int Ngy){
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                             // order: north -> east -> south -> west
-    
     cudaError_t cuda_error;
     dim3 dimBlock(CUDA_BLOCK_SIZE, CUDA_BLOCK_SIZE, 1);
     dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
-    helper_size = 4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y;
+    int helper_size = 4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y;
     cuda_error = cudaMalloc((void**)&d_helper, helper_size);
     if (cuda_error != cudaSuccess)
     {
-        cout << "CUDA error in cudaMalloc1: " << cudaGetErrorString(cuda_error) << endl;
+        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }
-    
-    evacuation_update<<<grid, block>>>(curand_states, gpu_nums);
+    cudaFuncSetCacheConfig(evacuation_update, cudaFuncCachePreferShared);
+    //evacuation_update<<<grid, block>>>(curand_states, gpu_nums);
 }
