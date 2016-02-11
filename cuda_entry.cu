@@ -384,9 +384,20 @@ void main(){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }     
+    // copy data from host to device
+    cuda_error = cudaMemcpy((void *)d_vcnt, (void *)h_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyHostToDevice);
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }  
+    cuda_error = cudaMemcpy((void *)d_vcap, (void *)h_vcap, sizeof(float)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyHostToDevice);
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }  
     cuda_error = cudaMemcpy((void *)d_turn, (void *)h_turn, sizeof(float4)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyHostToDevice);
     if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
+        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }    
        
@@ -407,4 +418,5 @@ void main(){
         evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt, d_vcap, d_turn, ENV_DIM_X, ENV_DIM_Y, d_helper);
         cudaThreadSynchronize();
     }
+    cudaThreadSynchronize();
 }
