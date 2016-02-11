@@ -13,10 +13,15 @@
 #include <curand.h>
 #include <curand_kernel.h>
 #include <vector_functions.h>
+#include <cstdlib>
 
 #define CUDA_BLOCK_SIZE    32
 #define VEHICLE_PER_STEP   1.5
 #define EPS                1e-5
+#define ENV_DIM_X          200
+#define ENV_DIM_Y          200
+#define N_ITER             500
+
 
 using namespace std;
 /*
@@ -232,7 +237,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
 ***********************************************************************************************************
 */
 __global__ void evacuation_halo_sync(float *cnt, float *cap, float4 *pturn, 
-                                  int Ngx, int Ngy, int b2r_i, float * d_halo_sync) 
+                                     int Ngx, int Ngy, float * d_halo_sync) 
 {
     int g_idx = blockIdx.x*blockDim.x + threadIdx.x;
     int g_idy = blockIdx.y*blockDim.y + threadIdx.y;
@@ -302,20 +307,89 @@ void evacuation_cuda_finalize()
 {
     cudaFree(curand_states);
 }
+
 /*
 ***********************************************************************************************************
-* func   name: evacuation_cuda_main
-* description: main entry of the model implementation, this function will be called from B2R every R 
-               simulation time steps.
+* func   name: evacuation_field_init
+* description: initialize the field, i.e., initialize all the turn probabilities 
 * parameters :
 *             none
 * return: none
 ***********************************************************************************************************
 */
-void evacuation_cuda_main(int b2r_R, int b2r_D, int Ngx, int Ngy){
+void evacuation_field_init(float4 *p_turn)
+{
+    for(int r = 0; r < ENV_DIM_Y; r++){
+        for(int c = 0; c < ENV_DIM_X; c++){
+            int idx = r*ENV_DIM_X+c;
+            p_turn[idx].x = 0.1;
+            p_turn[idx].y = 0.7;
+            p_turn[idx].z = 0.1;
+            p_turn[idx].w = 0.1;
+        }
+    }
+}
+
+/*
+***********************************************************************************************************
+* func   name: evacuation_state_init
+* description: initialize the state, i.e., initialize number of vehicles in each of the cells, and capacity 
+* parameters :
+*             none
+* return: none
+***********************************************************************************************************
+*/
+void evacuation_state_init(float *p_cnt, float *p_cap)
+{
+    for(int r = 0; r < ENV_DIM_Y; r++){
+        for(int c = 0; c < ENV_DIM_X; c++){
+            int idx = r*ENV_DIM_X+c;
+            p_cap[idx] = 10.0;
+            p_cnt[idx] = p_cap[idx] * rand() / RAND_MAX;
+        }
+    }
+}
+/*
+***********************************************************************************************************
+* func   name: main
+* description: main entry of the model implementation
+* parameters :
+*             none
+* return: none
+***********************************************************************************************************
+*/
+void main(){
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                             // order: north -> east -> south -> west
     cudaError_t cuda_error;
+    float *h_vcnt = new float[ENV_DIM_X*ENV_DIM_Y]();
+    float *h_vcap = new float[ENV_DIM_X*ENV_DIM_Y];
+    float4 *h_turn = new float4[ENV_DIM_X*ENV_DIM_Y];
+    evacuation_field_init(h_turn);
+    evacuation_state_init(h_vcnt, h_vcap);
+    float *d_vcnt, *d_vcap;
+    float4 *d_turn;
+    cuda_error = cudaMalloc((void**)&d_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y]);
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }
+    cuda_error = cudaMalloc((void**)&d_vcap, sizeof(float)*ENV_DIM_X*ENV_DIM_Y]);
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }
+    cuda_error = cudaMalloc((void**)&d_turn, sizeof(float4)*ENV_DIM_X*ENV_DIM_Y]);
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }     
+    cuda_error = cudaMemcpy((void *)d_turn, (void *)h_turn, sizeof(float4)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyHostToDevice);
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }    
+       
     dim3 dimBlock(CUDA_BLOCK_SIZE, CUDA_BLOCK_SIZE, 1);
     dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
     int helper_size = 4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y;
@@ -326,5 +400,11 @@ void evacuation_cuda_main(int b2r_R, int b2r_D, int Ngx, int Ngy){
         exit(-1);
     }
     cudaFuncSetCacheConfig(evacuation_update, cudaFuncCachePreferShared);
-    //evacuation_update<<<grid, block>>>(curand_states, gpu_nums);
+    
+    for(int i = 0; i < N_ITER; i++){
+        evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt, d_vcap, d_turn, ENV_DIM_X, ENV_DIM_Y, d_helper, curand_states);
+        cudaThreadSynchronize();
+        evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt, d_vcap, d_turn, ENV_DIM_X, ENV_DIM_Y, d_helper);
+        cudaThreadSynchronize();
+    }
 }
