@@ -464,4 +464,8 @@ int main()
     delete h_vcnt;
     delete h_vcap;
     delete h_turn;
+    cudaFree(d_turn);
+    cudaFree(d_vcnt);
+    cudaFree(d_vcap);
+    cudaFree(d_helper);
 }
