@@ -14,6 +14,7 @@
 #include <curand_kernel.h>
 #include <vector_functions.h>
 #include <cstdlib>
+#include <fstream>
 
 #define CUDA_BLOCK_SIZE    32
 #define VEHICLE_PER_STEP   1.5
@@ -351,6 +352,27 @@ void evacuation_state_init(float *p_cnt, float *p_cap)
 }
 /*
 ***********************************************************************************************************
+* func   name: write_vehicle_cnt_info
+* description: write results to file for visualizing
+* parameters :
+*             none
+* return: none
+***********************************************************************************************************
+*/
+void write_vehicle_cnt_info(float * p_vcnt)
+{
+    output_file.open("vehicle_cnt_info.txt");
+    for(int r = 0; r < ENV_DIM_Y; r++){
+        for(int c = 0; c < ENV_DIM_X; c++){
+            int idx = r*ENV_DIM_X+c;
+            output_file << p_cnt[idx] << ","
+        }
+        output_file << endl;
+    }    
+    output_file.close();
+}
+/*
+***********************************************************************************************************
 * func   name: main
 * description: main entry of the model implementation
 * parameters :
@@ -358,7 +380,8 @@ void evacuation_state_init(float *p_cnt, float *p_cap)
 * return: none
 ***********************************************************************************************************
 */
-void main(){
+void main()
+{
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                             // order: north -> east -> south -> west
     cudaError_t cuda_error;
@@ -419,4 +442,5 @@ void main(){
         cudaThreadSynchronize();
     }
     cudaThreadSynchronize();
+    write_vehicle_cnt_info(h_vcnt);
 }
