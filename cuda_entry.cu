@@ -92,7 +92,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
     __shared__ float4 io[CUDA_BLOCK_SIZE+2][CUDA_BLOCK_SIZE+2];
     __shared__ float halo_sync[4][CUDA_BLOCK_SIZE];  // order: N -> E -> S -> W
     // use the flag to ignore env edge
-    bool update_flag = g_idx >= 1 && g_idx <= (Ngx-2) && g_idy >= 1 && g_idy <= (Ngy-2);
+    bool update_flag = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
     
     float cnt_temp = cnt[uni_id];
     int idx = threadIdx.x + 1, idy = threadIdx.y + 1;
@@ -108,42 +108,74 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
     io[idy][idx].w = cnt_out * pturn_c.w;    // go west
 
     // extra work for edge threads, for the halo
-    if(update_flag && threadIdx.x == 0){                        // left halo
-        pturn_c = pturn[uni_id-1];
-        cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id-1]);
-        io[idy][0].x = cnt_out * pturn_c.x;      // go north
-        io[idy][0].y = cnt_out * pturn_c.y;      // go east
-        io[idy][0].z = cnt_out * pturn_c.z;      // go south
-        io[idy][0].w = cnt_out * pturn_c.w;      // go west    
-        halo_sync[3][idy] = io[idy][0].y;        // will be used to computing how many vehicles get accepted by west cell
+    if(threadIdx.x == 0){                        // left halo
+        if(update_flag){
+            pturn_c = pturn[uni_id-1];
+            cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id-1]);
+            io[idy][0].x = cnt_out * pturn_c.x;      // go north
+            io[idy][0].y = cnt_out * pturn_c.y;      // go east
+            io[idy][0].z = cnt_out * pturn_c.z;      // go south
+            io[idy][0].w = cnt_out * pturn_c.w;      // go west    
+            halo_sync[3][idy] = io[idy][0].y;        // will be used to computing how many vehicles get accepted by west cell
+        }else{
+            io[idy][0].x = 0;      // go north
+            io[idy][0].y = 0;      // go east
+            io[idy][0].z = 0;      // go south
+            io[idy][0].w = 0;      // go west     
+            halo_sync[3][idy] = 0;          
+        }
     }
-    if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){        // right halo
-        pturn_c = pturn[uni_id+1];
-        cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id+1]);
-        io[idy][CUDA_BLOCK_SIZE+1].x = cnt_out * pturn_c.x;    // go north
-        io[idy][CUDA_BLOCK_SIZE+1].y = cnt_out * pturn_c.y;    // go east
-        io[idy][CUDA_BLOCK_SIZE+1].z = cnt_out * pturn_c.z;    // go south
-        io[idy][CUDA_BLOCK_SIZE+1].w = cnt_out * pturn_c.w;    // go west   
-        halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].w;
+    if(threadIdx.x == CUDA_BLOCK_SIZE-1){        // right halo
+        if(update_flag){
+            pturn_c = pturn[uni_id+1];
+            cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id+1]);
+            io[idy][CUDA_BLOCK_SIZE+1].x = cnt_out * pturn_c.x;    // go north
+            io[idy][CUDA_BLOCK_SIZE+1].y = cnt_out * pturn_c.y;    // go east
+            io[idy][CUDA_BLOCK_SIZE+1].z = cnt_out * pturn_c.z;    // go south
+            io[idy][CUDA_BLOCK_SIZE+1].w = cnt_out * pturn_c.w;    // go west   
+            halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].w;
+        }else{
+            io[idy][CUDA_BLOCK_SIZE+1].x = 0;    // go north
+            io[idy][CUDA_BLOCK_SIZE+1].y = 0;    // go east
+            io[idy][CUDA_BLOCK_SIZE+1].z = 0;    // go south
+            io[idy][CUDA_BLOCK_SIZE+1].w = 0;    // go west   
+            halo_sync[1][idy] = 0;            
+        }
     }
 
-    if(update_flag && threadIdx.y == 0){	                     // top halo 
-        pturn_c = pturn[uni_id-Ngx];
-        cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id-Ngx]);
-        io[0][idx].x = cnt_out * pturn_c.x;    // go north
-        io[0][idx].y = cnt_out * pturn_c.y;    // go east
-        io[0][idx].z = cnt_out * pturn_c.z;    // go south
-        io[0][idx].w = cnt_out * pturn_c.w;    // go west          
-        halo_sync[0][idx] = io[0][idx].z;
+    if(threadIdx.y == 0){	                     // top halo 
+        if(update_flag){
+            pturn_c = pturn[uni_id-Ngx];
+            cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id-Ngx]);
+            io[0][idx].x = cnt_out * pturn_c.x;    // go north
+            io[0][idx].y = cnt_out * pturn_c.y;    // go east
+            io[0][idx].z = cnt_out * pturn_c.z;    // go south
+            io[0][idx].w = cnt_out * pturn_c.w;    // go west          
+            halo_sync[0][idx] = io[0][idx].z;
+        }else{
+            io[0][idx].x = 0;    // go north
+            io[0][idx].y = 0;    // go east
+            io[0][idx].z = 0;    // go south
+            io[0][idx].w = 0;    // go west          
+            halo_sync[0][idx] = 0;
+        }
     }    
-    if(update_flag && threadIdx.y == CUDA_BLOCK_SIZE-1){        // bottom halo
-        pturn_c = pturn[uni_id+Ngx];
-        cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id+Ngx]);        
-        io[CUDA_BLOCK_SIZE+1][idx].x = cnt_out * pturn_c.x;    // go north
-        io[CUDA_BLOCK_SIZE+1][idx].y = cnt_out * pturn_c.y;    // go east
-        io[CUDA_BLOCK_SIZE+1][idx].z = cnt_out * pturn_c.z;    // go south
-        io[CUDA_BLOCK_SIZE+1][idx].w = cnt_out * pturn_c.w;    // go west    
-        halo_sync[2][idx] = io[CUDA_BLOCK_SIZE+1][idx].x;      
+    if(threadIdx.y == CUDA_BLOCK_SIZE-1){        // bottom halo
+        if(update_flag){
+            pturn_c = pturn[uni_id+Ngx];
+            cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id+Ngx]);        
+            io[CUDA_BLOCK_SIZE+1][idx].x = cnt_out * pturn_c.x;    // go north
+            io[CUDA_BLOCK_SIZE+1][idx].y = cnt_out * pturn_c.y;    // go east
+            io[CUDA_BLOCK_SIZE+1][idx].z = cnt_out * pturn_c.z;    // go south
+            io[CUDA_BLOCK_SIZE+1][idx].w = cnt_out * pturn_c.w;    // go west    
+            halo_sync[2][idx] = io[CUDA_BLOCK_SIZE+1][idx].x;      
+        }else{
+            io[CUDA_BLOCK_SIZE+1][idx].x = 0;    // go north
+            io[CUDA_BLOCK_SIZE+1][idx].y = 0;    // go east
+            io[CUDA_BLOCK_SIZE+1][idx].z = 0;    // go south
+            io[CUDA_BLOCK_SIZE+1][idx].w = 0;    // go west    
+            halo_sync[2][idx] = 0;              
+        }
     }
     // then wait untill all the threads in the sam thread block finish their outgoing conut processing
     __syncthreads();  
@@ -251,25 +283,25 @@ __global__ void evacuation_halo_sync(float *cnt, float *cap, float4 *pturn,
     {
         return;
     }    
-	int idx = threadIdx.x + 1, idy = threadIdx.y + 1; 
-    if(idx == 0 && blockIdx.x > 0){                                  // left
+
+    if(threadIdx.x == 0 && blockIdx.x > 0){                                  // left
         int id_helper = (blockIdx.y*gridDim.x + blockIdx.x - 1) * (4 * CUDA_BLOCK_SIZE);
         id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
         cnt[uni_id] -= d_halo_sync[id_helper];  
     }      
-    if(idx == CUDA_BLOCK_SIZE-1 && blockIdx.x < gridDim.x-1){        // right
+    if(threadIdx.x == CUDA_BLOCK_SIZE-1 && blockIdx.x < gridDim.x-1){        // right
         int id_helper = (blockIdx.y*gridDim.x + blockIdx.x + 1) * (4 * CUDA_BLOCK_SIZE);
         id_helper += CUDA_BLOCK_SIZE + threadIdx.y;
         cnt[uni_id] -= d_halo_sync[id_helper]; 
     }
 
-    if(idy == 0 && blockIdx.y > 0){                                  // top
+    if(threadIdx.y == 0 && blockIdx.y > 0){                                  // top
         int id_helper = ( (blockIdx.y-1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
         id_helper += threadIdx.x;
         cnt[uni_id] -= d_halo_sync[id_helper]; 
     }
 
-    if(idy == CUDA_BLOCK_SIZE-1 && blockIdx.y < gridDim.y-1){        // bottom
+    if(threadIdx.y == CUDA_BLOCK_SIZE-1 && blockIdx.y < gridDim.y-1){        // bottom
         int id_helper = ( (blockIdx.y+1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
         id_helper += 2*CUDA_BLOCK_SIZE + threadIdx.x;
         cnt[uni_id] -= d_halo_sync[id_helper]; 
@@ -434,7 +466,7 @@ int main()
        
     dim3 dimBlock(CUDA_BLOCK_SIZE, CUDA_BLOCK_SIZE, 1);
     dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
-    int helper_size = 4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y;
+    int helper_size = 4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y * sizeof(float);
     cuda_error = cudaMalloc((void**)&d_helper, helper_size);
     if (cuda_error != cudaSuccess)
     {
