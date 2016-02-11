@@ -359,10 +359,12 @@ void evacuation_state_init(float *p_cnt, float *p_cap)
 * return: none
 ***********************************************************************************************************
 */
-void write_vehicle_cnt_info(float * p_vcnt)
+void write_vehicle_cnt_info(int time_step, float * p_vcnt)
 {
     ofstream output_file;
-    output_file.open("vehicle_cnt_info.txt");
+    char filename[100];
+    sprintf( filename, "vehicle-cnt-info-ts%d.txt", time_step);
+    output_file.open(filename);
     for(int r = 0; r < ENV_DIM_Y; r++){
         for(int c = 0; c < ENV_DIM_X; c++){
             int idx = r*ENV_DIM_X+c;
@@ -442,7 +444,20 @@ int main()
         cudaThreadSynchronize();
         evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt, d_vcap, d_turn, ENV_DIM_X, ENV_DIM_Y, d_helper);
         cudaThreadSynchronize();
+        if(i%50 == 0) {
+            cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyDeviceToHost);
+            if (cuda_error != cudaSuccess){
+                cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
+                exit(-1);
+            }  
+            write_vehicle_cnt_info(i, h_vcnt);
+        }
     }
     cudaThreadSynchronize();
-    write_vehicle_cnt_info(h_vcnt);
+    cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyDeviceToHost);
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }  
+    write_vehicle_cnt_info(N_ITER, h_vcnt);
 }
