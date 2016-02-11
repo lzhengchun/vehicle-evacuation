@@ -389,7 +389,7 @@ int main()
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                             // order: north -> east -> south -> west
     cudaError_t cuda_error;
-    float *h_vcnt = new float[ENV_DIM_X*ENV_DIM_Y]();
+    float *h_vcnt = new float[ENV_DIM_X*ENV_DIM_Y];
     float *h_vcap = new float[ENV_DIM_X*ENV_DIM_Y];
     float4 *h_turn = new float4[ENV_DIM_X*ENV_DIM_Y];
     evacuation_field_init(h_turn);
@@ -460,4 +460,8 @@ int main()
         exit(-1);
     }  
     write_vehicle_cnt_info(N_ITER, h_vcnt);
+    
+    delete h_vcnt;
+    delete h_vcap;
+    delete h_turn;
 }
