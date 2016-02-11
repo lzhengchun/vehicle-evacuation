@@ -366,7 +366,7 @@ void write_vehicle_cnt_info(float * p_vcnt)
     for(int r = 0; r < ENV_DIM_Y; r++){
         for(int c = 0; c < ENV_DIM_X; c++){
             int idx = r*ENV_DIM_X+c;
-            output_file << p_cnt[idx] << ",";
+            output_file << p_vcnt[idx] << ",";
         }
         output_file << endl;
     }    
