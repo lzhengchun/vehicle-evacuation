@@ -91,6 +91,8 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
     }
     __shared__ float4 io[CUDA_BLOCK_SIZE+2][CUDA_BLOCK_SIZE+2];
     __shared__ float halo_sync[4][CUDA_BLOCK_SIZE];  // order: N -> E -> S -> W
+    // use the flag to ignore env edge
+    bool update_flag = g_idx >= 1 && g_idx <= (Ngx-2) && g_idy >= 1 && g_idy <= (Ngy-2);
     
     float cnt_temp = cnt[uni_id];
     int idx = threadIdx.x + 1, idy = threadIdx.y + 1;
@@ -98,6 +100,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
 // note that, this is NOT the number of vehicles will be out after the current step
 // it depends on the saturation of neighboors, but sure will not be more than the outgoing capacity(depends on speed of vehicle)
     float cnt_out = fminf(VEHICLE_PER_STEP, cnt_temp);
+    float cnt_out_bk = cnt_out;
     float4 pturn_c = pturn[uni_id];          // turn probabilities of the cell [i, j]
     io[idy][idx].x = cnt_out * pturn_c.x;    // go north
     io[idy][idx].y = cnt_out * pturn_c.y;    // go east
@@ -105,16 +108,16 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
     io[idy][idx].w = cnt_out * pturn_c.w;    // go west
 
     // extra work for edge threads, for the halo
-    if(idx == 0){
+    if(update_flag && threadIdx.x == 0){                        // left halo
         pturn_c = pturn[uni_id-1];
         cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id-1]);
-        io[idy][0].x = cnt_out * pturn_c.x;    // go north
-        io[idy][0].y = cnt_out * pturn_c.y;    // go east
-        io[idy][0].z = cnt_out * pturn_c.z;    // go south
-        io[idy][0].w = cnt_out * pturn_c.w;    // go west    
-        halo_sync[3][idy] = io[idy][0].y;      // will be used to computing how many vehicles get accepted by west cell
+        io[idy][0].x = cnt_out * pturn_c.x;      // go north
+        io[idy][0].y = cnt_out * pturn_c.y;      // go east
+        io[idy][0].z = cnt_out * pturn_c.z;      // go south
+        io[idy][0].w = cnt_out * pturn_c.w;      // go west    
+        halo_sync[3][idy] = io[idy][0].y;        // will be used to computing how many vehicles get accepted by west cell
     }
-    if(idx == CUDA_BLOCK_SIZE-1){
+    if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){        // right halo
         pturn_c = pturn[uni_id+1];
         cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id+1]);
         io[idy][CUDA_BLOCK_SIZE+1].x = cnt_out * pturn_c.x;    // go north
@@ -124,7 +127,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
         halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].w;
     }
 
-    if(idy == 0){
+    if(update_flag && threadIdx.y == 0){	                     // top halo 
         pturn_c = pturn[uni_id-Ngx];
         cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id-Ngx]);
         io[0][idx].x = cnt_out * pturn_c.x;    // go north
@@ -133,7 +136,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
         io[0][idx].w = cnt_out * pturn_c.w;    // go west          
         halo_sync[0][idx] = io[0][idx].z;
     }    
-    if(idy == CUDA_BLOCK_SIZE-1){
+    if(update_flag && threadIdx.y == CUDA_BLOCK_SIZE-1){        // bottom halo
         pturn_c = pturn[uni_id+Ngx];
         cnt_out = fminf(VEHICLE_PER_STEP, cnt[uni_id+Ngx]);        
         io[CUDA_BLOCK_SIZE+1][idx].x = cnt_out * pturn_c.x;    // go north
@@ -199,29 +202,31 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
 
     __syncthreads();
 // add saturated vehicle back to counter, pre_cnt - (want_go - saturated) + incoming(in_cap - in_cap_left)
-    cnt[uni_id] = cnt_temp - (cnt_out - io[idy][idx].x - io[idy][idx].y - io[idy][idx].z - io[idy][idx].w) 
+    if(update_flag){
+    cnt[uni_id] = cnt_temp - (cnt_out_bk - io[idy][idx].x - io[idy][idx].y - io[idy][idx].z - io[idy][idx].w) 
                 + (diff_bk - diff_cap);
-   __syncthreads();
-   
-// 3rd step, process halo synchronization!!!! synchronizing via device global memory
-    // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
+        __syncthreads();
+    }
+        
+                    cess halo synchronization!!!! synchronizing via device global memory
+    	 o update, we have to know how much vehicle actully went out (get accepted by neighboor)
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
     int id_helper = blk_uid * (4 * CUDA_BLOCK_SIZE);
-    if(idx == 0){                                // left
+    if(update_flag && threadIdx.x == 0){                                // left
         id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
         d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;   // number of vehicles which actully go out
     }      
-    if(idx == CUDA_BLOCK_SIZE-1){                // right
+    if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
         id_helper += CUDA_BLOCK_SIZE + threadIdx.y;
         d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
     }
 
-    if(idy == 0){                                // top
+    if(update_flag && threadIdx.y == 0){                                // top
         id_helper += threadIdx.x;
         d_halo_sync[id_helper] = halo_sync[0][idx] - io[0][idx].z;
     }
 
-    if(idy == CUDA_BLOCK_SIZE-1){                // bottom
+    if(update_flag && threadIdx.y == CUDA_BLOCK_SIZE-1){                // bottom
         id_helper += 2*CUDA_BLOCK_SIZE + threadIdx.x;
         d_halo_sync[id_helper] = halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x;
     }       
@@ -318,11 +323,11 @@ void evacuation_cuda_finalize()
 * return: none
 ***********************************************************************************************************
 */
-void evacuation_field_init(float4 *p_turn)
+void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
 {
-    for(int r = 0; r < ENV_DIM_Y; r++){
-        for(int c = 0; c < ENV_DIM_X; c++){
-            int idx = r*ENV_DIM_X+c;
+    for(int r = 1; r < Ngy-1; r++){
+        for(int c = 1; c < Ngx-1; c++){
+            int idx = r*Ngx+c;
             p_turn[idx].x = 0.1;
             p_turn[idx].y = 0.7;
             p_turn[idx].z = 0.1;
@@ -340,11 +345,11 @@ void evacuation_field_init(float4 *p_turn)
 * return: none
 ***********************************************************************************************************
 */
-void evacuation_state_init(float *p_cnt, float *p_cap)
+void evacuation_state_init(float *p_cnt, float *p_cap, int Ngx, int Ngy)
 {
-    for(int r = 0; r < ENV_DIM_Y; r++){
-        for(int c = 0; c < ENV_DIM_X; c++){
-            int idx = r*ENV_DIM_X+c;
+    for(int r = 1; r < Ngy-1; r++){
+        for(int c = 1; c < Ngx-1; c++){
+            int idx = r*Ngx+c;
             p_cap[idx] = 10.0;
             p_cnt[idx] = p_cap[idx] * rand() / RAND_MAX;
         }
@@ -359,15 +364,15 @@ void evacuation_state_init(float *p_cnt, float *p_cap)
 * return: none
 ***********************************************************************************************************
 */
-void write_vehicle_cnt_info(int time_step, float * p_vcnt)
+void write_vehicle_cnt_info(int time_step, float * p_vcnt, int Ngx, int Ngy)
 {
     ofstream output_file;
     char filename[100];
     sprintf( filename, "vehicle-cnt-info-ts%d.txt", time_step);
     output_file.open(filename);
-    for(int r = 0; r < ENV_DIM_Y; r++){
-        for(int c = 0; c < ENV_DIM_X; c++){
-            int idx = r*ENV_DIM_X+c;
+    for(int r = 1; r < Ngy-1; r++){
+        for(int c = 1; c < Ngx; c++){
+            int idx = r*Ngx+c;
             output_file << p_vcnt[idx] << ",";
         }
         output_file << endl;
@@ -385,44 +390,44 @@ void write_vehicle_cnt_info(int time_step, float * p_vcnt)
 */
 int main()
 {
-    int Ngx = ENV_DIM_X, Ngy = ENV_DIM_Y;
+    int Ngx = ENV_DIM_X + 2, Ngy = ENV_DIM_Y + 2;
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                             // order: north -> east -> south -> west
     cudaError_t cuda_error;
-    float *h_vcnt = new float[ENV_DIM_X*ENV_DIM_Y];
-    float *h_vcap = new float[ENV_DIM_X*ENV_DIM_Y];
-    float4 *h_turn = new float4[ENV_DIM_X*ENV_DIM_Y];
+    float *h_vcnt = new float[Ngx*Ngy];
+    float *h_vcap = new float[Ngx*Ngy];
+    float4 *h_turn = new float4[Ngx*Ngy];
     evacuation_field_init(h_turn);
     evacuation_state_init(h_vcnt, h_vcap);
     float *d_vcnt, *d_vcap;
     float4 *d_turn;
-    cuda_error = cudaMalloc((void**)&d_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y);
+    cuda_error = cudaMalloc((void**)&d_vcnt, sizeof(float)*Ngx*Ngy);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }
-    cuda_error = cudaMalloc((void**)&d_vcap, sizeof(float)*ENV_DIM_X*ENV_DIM_Y);
+    cuda_error = cudaMalloc((void**)&d_vcap, sizeof(float)*Ngx*Ngy);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }
-    cuda_error = cudaMalloc((void**)&d_turn, sizeof(float4)*ENV_DIM_X*ENV_DIM_Y);
+    cuda_error = cudaMalloc((void**)&d_turn, sizeof(float4)*Ngx*Ngy);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }     
     // copy data from host to device
-    cuda_error = cudaMemcpy((void *)d_vcnt, (void *)h_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyHostToDevice);
+    cuda_error = cudaMemcpy((void *)d_vcnt, (void *)h_vcnt, sizeof(float)*Ngx*Ngy, cudaMemcpyHostToDevice);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }  
-    cuda_error = cudaMemcpy((void *)d_vcap, (void *)h_vcap, sizeof(float)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyHostToDevice);
+    cuda_error = cudaMemcpy((void *)d_vcap, (void *)h_vcap, sizeof(float)*Ngx*Ngy, cudaMemcpyHostToDevice);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }  
-    cuda_error = cudaMemcpy((void *)d_turn, (void *)h_turn, sizeof(float4)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyHostToDevice);
+    cuda_error = cudaMemcpy((void *)d_turn, (void *)h_turn, sizeof(float4)*Ngx*Ngy, cudaMemcpyHostToDevice);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
@@ -437,19 +442,24 @@ int main()
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }
+    // config to use more shared memory, less L1 cache
     cudaFuncSetCacheConfig(evacuation_update, cudaFuncCachePreferShared);
     
     for(int i = 0; i < N_ITER; i++){
-        evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt, d_vcap, d_turn, ENV_DIM_X, ENV_DIM_Y, d_helper, curand_states);
-        cudaThreadSynchronize();
-        evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt, d_vcap, d_turn, ENV_DIM_X, ENV_DIM_Y, d_helper);
+        evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt, d_vcap, d_turn, Ngx, Ngy, d_helper, curand_states);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
-            cout << "CUDA error in cudaThreadSynchronize: " << cudaGetErrorString(cuda_error) << endl;
+            cout << "CUDA error in cudaThreadSynchronize, update: " << cudaGetErrorString(cuda_error) << endl;
+            exit(-1);
+        } 
+        evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt, d_vcap, d_turn, Ngx, Ngy, d_helper);
+        cuda_error = cudaThreadSynchronize();
+        if (cuda_error != cudaSuccess){
+            cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
             exit(-1);
         } 
         if(i%50 == 0) {
-            cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyDeviceToHost);
+            cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost);
             if (cuda_error != cudaSuccess){
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
                 exit(-1);
@@ -458,7 +468,7 @@ int main()
         }
     }
     cudaThreadSynchronize();
-    cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyDeviceToHost);
+    cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
