@@ -179,6 +179,7 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
     }
     // then wait untill all the threads in the sam thread block finish their outgoing conut processing
     __syncthreads();  
+    return;
 // 2nd step, process incoming vehicles, it will update outgoing requests of neighboors. 
     float diff_cap = cap[uni_id] - cnt_temp;                   // the capacity of incoming vehicles 
     float diff_bk = diff_cap;                                  // save the capacity for computing how many vehicles entered at the end
@@ -235,11 +236,10 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
     __syncthreads();
 // add saturated vehicle back to counter, pre_cnt - (want_go - saturated) + incoming(in_cap - in_cap_left)
     if(update_flag){
-    cnt[uni_id] = cnt_temp - (cnt_out_bk - io[idy][idx].x - io[idy][idx].y - io[idy][idx].z - io[idy][idx].w) 
-                + (diff_bk - diff_cap);
+        cnt[uni_id] = cnt_temp - (cnt_out_bk - io[idy][idx].x - io[idy][idx].y - io[idy][idx].z - io[idy][idx].w) 
+                    + (diff_bk - diff_cap);
         __syncthreads();
     }
-    return;
 // 3rd step, process halo synchronization!!!! synchronizing via device global memory    
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
