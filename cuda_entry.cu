@@ -207,14 +207,13 @@ __global__ void evacuation_update(float *cnt, float *cap, float4 *pturn,
                 + (diff_bk - diff_cap);
         __syncthreads();
     }
-        
-                    cess halo synchronization!!!! synchronizing via device global memory
-    	 o update, we have to know how much vehicle actully went out (get accepted by neighboor)
+// 3rd step, process halo synchronization!!!! synchronizing via device global memory    
+// to update, we have to know how much vehicle actully went out (get accepted by neighboor)
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
     int id_helper = blk_uid * (4 * CUDA_BLOCK_SIZE);
     if(update_flag && threadIdx.x == 0){                                // left
         id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
-        d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;   // number of vehicles which actully go out
+        d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
     }      
     if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
         id_helper += CUDA_BLOCK_SIZE + threadIdx.y;
@@ -397,8 +396,8 @@ int main()
     float *h_vcnt = new float[Ngx*Ngy];
     float *h_vcap = new float[Ngx*Ngy];
     float4 *h_turn = new float4[Ngx*Ngy];
-    evacuation_field_init(h_turn);
-    evacuation_state_init(h_vcnt, h_vcap);
+    evacuation_field_init(h_turn, Ngx, Ngy);
+    evacuation_state_init(h_vcnt, h_vcap, Ngx, Ngy);
     float *d_vcnt, *d_vcap;
     float4 *d_turn;
     cuda_error = cudaMalloc((void**)&d_vcnt, sizeof(float)*Ngx*Ngy);
@@ -464,7 +463,7 @@ int main()
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
                 exit(-1);
             }  
-            write_vehicle_cnt_info(i, h_vcnt);
+            write_vehicle_cnt_info(i, h_vcnt, Ngx, Ngy);
         }
     }
     cudaThreadSynchronize();
@@ -473,7 +472,7 @@ int main()
         cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }  
-    write_vehicle_cnt_info(N_ITER, h_vcnt);
+    write_vehicle_cnt_info(N_ITER, h_vcnt, Ngx, Ngy);
     
     delete h_vcnt;
     delete h_vcap;
