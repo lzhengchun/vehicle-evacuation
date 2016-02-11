@@ -443,7 +443,11 @@ int main()
         evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt, d_vcap, d_turn, ENV_DIM_X, ENV_DIM_Y, d_helper, curand_states);
         cudaThreadSynchronize();
         evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt, d_vcap, d_turn, ENV_DIM_X, ENV_DIM_Y, d_helper);
-        cudaThreadSynchronize();
+        cuda_error = cudaThreadSynchronize();
+        if (cuda_error != cudaSuccess){
+            cout << "CUDA error in cudaThreadSynchronize: " << cudaGetErrorString(cuda_error) << endl;
+            exit(-1);
+        } 
         if(i%50 == 0) {
             cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt, sizeof(float)*ENV_DIM_X*ENV_DIM_Y, cudaMemcpyDeviceToHost);
             if (cuda_error != cudaSuccess){
