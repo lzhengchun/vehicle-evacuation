@@ -588,6 +588,7 @@ int main()
                 cout << "CUDA error in cudaMemcpy, halo: " << cudaGetErrorString(cuda_error) << endl;
                 exit(-1);
             } 
+            cudaThreadSynchronize();
             write_halo_sync(i+1, h_halo_sync, dimGrid.x * dimGrid.y);
         }
         p_swap = d_vcnt_in;
