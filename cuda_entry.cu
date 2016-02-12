@@ -268,16 +268,6 @@ update_flag = 1;
         d_halo_sync[id_helper] = threadIdx.x + blk_uid/100.f;
     }     
 }
-
-__global__ void write_halo_sync_kernel(float *cnt, int Ngx, int Ngy, float * d_halo_sync){
-    int blkid = blockIdx.y * gridDim.x + blockIdx.x;
-    int hst = blkid * 64;
-    if(threadIdx.x == 0){
-        int hid = hst + 3*16 + threadIdx.y;
-        d_halo_sync[hid] = threadIdx.y + blkid/10.f;
-    }
-}
-
 /*
 ***********************************************************************************************************
 * func   name: evacuation_halo_sync
