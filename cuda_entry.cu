@@ -452,8 +452,8 @@ void write_halo_sync(int time_step, float * p_halo_sync, int n_block)
     char filename[100];
     sprintf( filename, "halo-sync-ts-%d.txt", time_step);
     output_file.open(filename);
-    for(int i=0; i<4*CUDA_BLOCK_SIZE*n_block){
-        output_file << p_halo_sync[idx] << ",";
+    for(int i=0; i<4*CUDA_BLOCK_SIZE*n_block; i++){
+        output_file << p_halo_sync[i] << ",";
     }
     output_file.close();
     return;
