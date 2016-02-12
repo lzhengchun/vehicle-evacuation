@@ -21,7 +21,7 @@
 #define EPS                1e-5
 #define ENV_DIM_X          200
 #define ENV_DIM_Y          200
-#define N_ITER             500
+#define N_ITER             1
 #define MAX_CAP            10.f
 
 using namespace std;
@@ -550,7 +550,8 @@ int main()
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }
-    float *h_halo_sync = new float[4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y];
+    float *h_halo_sync = new float[4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y]();
+    cudaMemcpy((void *)d_helper, (void *)h_halo_sync, 4*CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyHostToDevice);
     // config to use more shared memory, less L1 cache
     cudaFuncSetCacheConfig(evacuation_update, cudaFuncCachePreferShared);
     write_vehicle_cnt_info(0, h_vcnt, Ngx, Ngy);  // initial state
@@ -569,7 +570,8 @@ int main()
             cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
             exit(-1);
         } 
-        if((i+1)%50 == 0) {
+        //if((i+1)%50 == 0) {
+        if(1){
             cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_out, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost);
             if (cuda_error != cudaSuccess){
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
