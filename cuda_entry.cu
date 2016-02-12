@@ -34,7 +34,7 @@ using namespace std;
 */
 // curand library uses curandState_t to keep track of the seed value 
 // we will store a random state for every thread 
-curandState_t* curand_states;
+
 // duplicate the last one to avoid random number generater curand_uniform generate exactly 1.0
 __constant__  unsigned char order[25][4] = {{0,1,2,3}, {0,1,3,2}, {0,2,1,3}, {0,2,3,1}, 
                                             {0,3,1,2}, {0,3,2,1}, {1,0,2,3}, {1,0,3,2}, 
@@ -188,8 +188,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     int rnd = (unsigned char)( curand_uniform(&states[uni_id])*24 ); 
     for (int i=0; i<4 && diff_cap > EPS; i++)
     {
-        //switch(order[rnd][i])
-        switch(i)
+        switch(order[rnd][i])
         {
             case 0:	                             // enter from top 
                 if(diff_cap > io[idx][idy-1].z)
@@ -320,7 +319,7 @@ __global__ void evacuation_halo_sync(float *cnt, float *cap, float4 *pturn,
 * return: none
 ***********************************************************************************************************
 */
-void evacuation_cuda_init(int Ngx, int Ngy){
+void evacuation_cuda_init(int Ngx, int Ngy, curandState_t* curand_states;){
     int nthread = Ngx * Ngy;
     // allocate space on the GPU for the random states 
     cudaMalloc((void**) &curand_states, nthread * sizeof(curandState_t));
@@ -434,7 +433,14 @@ int main()
     evacuation_state_init(h_vcnt, h_vcap, Ngx, Ngy);
     float *d_vcnt_in, *d_vcnt_out, *d_vcap, *p_swap;
     float4 *d_turn;
+    dim3 dimBlock(CUDA_BLOCK_SIZE, CUDA_BLOCK_SIZE, 1);
+    dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
+    
     cuda_error = cudaMalloc((void**)&d_vcnt_in, sizeof(float)*Ngx*Ngy);
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }    
     cuda_error = cudaMalloc((void**)&d_vcnt_out, sizeof(float)*Ngx*Ngy);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
@@ -450,6 +456,23 @@ int main()
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }     
+    // initialize random state
+    curandState_t* curand_states;
+    int nthread = Ngx * Ngy;           // just keep the same as the number of cells
+    // allocate space on the GPU for the random states 
+    cuda_error = cudaMalloc((void**) &curand_states, nthread * sizeof(curandState_t));
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }    
+    // Launch configuration:  
+    // invoke the GPU to initialize all of the random states 
+    curand_init_all<<<dimGrid, dimBlock>>>(time(0), curand_states, Ngx, Ngy);
+    cuda_error = cudaThreadSynchronize();
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaThreadSynchronize, random initialize: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }    
     // copy data from host to device
     cuda_error = cudaMemcpy((void *)d_vcnt_in, (void *)h_vcnt, sizeof(float)*Ngx*Ngy, cudaMemcpyHostToDevice);
     if (cuda_error != cudaSuccess){
@@ -471,9 +494,7 @@ int main()
         cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }    
-       
-    dim3 dimBlock(CUDA_BLOCK_SIZE, CUDA_BLOCK_SIZE, 1);
-    dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
+        
     int helper_size = 4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y * sizeof(float);
     cuda_error = cudaMalloc((void**)&d_helper, helper_size);
     if (cuda_error != cudaSuccess)
