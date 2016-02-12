@@ -246,7 +246,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     int id_helper_st = blk_uid * (4 * CUDA_BLOCK_SIZE);                    // start address in current block
     if(update_flag && threadIdx.x == 0){                                // left
         int id_helper = id_helper_st + 3*CUDA_BLOCK_SIZE + threadIdx.y;
-        d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
+        d_halo_sync[id_helper] = halo_sync[3][idy];// - io[idy][0].y;      // number of vehicles which actully go out
     }      
     if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
         int id_helper = id_helper_st + CUDA_BLOCK_SIZE + threadIdx.y;
