@@ -243,7 +243,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
 // 3rd step, process halo synchronization!!!! synchronizing via device global memory    
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
-    int id_helper = blk_uid * (4 * CUDA_BLOCK_SIZE);
+    int id_helper = blk_uid * (4 * CUDA_BLOCK_SIZE);                    // start address of current block
     if(update_flag && threadIdx.x == 0){                                // left
         id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
         d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
@@ -274,8 +274,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
 * note:   cuda vec 4 type: x->north; y->east; z->south; w->west; 
 ***********************************************************************************************************
 */
-__global__ void evacuation_halo_sync(float *cnt, float *cap, float4 *pturn, 
-                                     int Ngx, int Ngy, float * d_halo_sync) 
+__global__ void evacuation_halo_sync(float *cnt, int Ngx, int Ngy, float * d_halo_sync) 
 {
     int g_idx = blockIdx.x*blockDim.x + threadIdx.x;
     int g_idy = blockIdx.y*blockDim.y + threadIdx.y;
@@ -287,24 +286,24 @@ __global__ void evacuation_halo_sync(float *cnt, float *cap, float4 *pturn,
 
     if(threadIdx.x == 0 && blockIdx.x > 0){                                  // left
         int id_helper = (blockIdx.y*gridDim.x + blockIdx.x - 1) * (4 * CUDA_BLOCK_SIZE);
-        id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
+        id_helper += 1*CUDA_BLOCK_SIZE + threadIdx.y;
         cnt[uni_id] -= d_halo_sync[id_helper];  
     }      
     if(threadIdx.x == CUDA_BLOCK_SIZE-1 && blockIdx.x < gridDim.x-1){        // right
         int id_helper = (blockIdx.y*gridDim.x + blockIdx.x + 1) * (4 * CUDA_BLOCK_SIZE);
-        id_helper += CUDA_BLOCK_SIZE + threadIdx.y;
+        id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
         cnt[uni_id] -= d_halo_sync[id_helper]; 
     }
 
     if(threadIdx.y == 0 && blockIdx.y > 0){                                  // top
         int id_helper = ( (blockIdx.y-1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
-        id_helper += threadIdx.x;
+        id_helper += 2*CUDA_BLOCK_SIZE + threadIdx.x;
         cnt[uni_id] -= d_halo_sync[id_helper]; 
     }
 
     if(threadIdx.y == CUDA_BLOCK_SIZE-1 && blockIdx.y < gridDim.y-1){        // bottom
         int id_helper = ( (blockIdx.y+1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
-        id_helper += 2*CUDA_BLOCK_SIZE + threadIdx.x;
+        id_helper += threadIdx.x;
         cnt[uni_id] -= d_halo_sync[id_helper]; 
     }       
     
@@ -535,7 +534,7 @@ int main()
             cout << "CUDA error in cudaThreadSynchronize, update: " << cudaGetErrorString(cuda_error) << endl;
             exit(-1);
         } 
-        //evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, d_vcap, d_turn, Ngx, Ngy, d_helper);
+        evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
             cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
