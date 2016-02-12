@@ -242,30 +242,25 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     }
 // 3rd step, process halo synchronization!!!! synchronizing via device global memory    
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
-update_flag = 1;
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
     int id_helper_st = blk_uid * (4 * CUDA_BLOCK_SIZE);                    // start address in current block
     if(update_flag && threadIdx.x == 0){                                // left
         int id_helper = id_helper_st + 3*CUDA_BLOCK_SIZE + threadIdx.y;
-        //d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
-        d_halo_sync[id_helper] = threadIdx.y + blk_uid/10.f;
+        d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
     }      
     if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
         int id_helper = id_helper_st + CUDA_BLOCK_SIZE + threadIdx.y;
-        //d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
-        d_halo_sync[id_helper] = threadIdx.y + blk_uid/100.f;
+        d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
     }
 
     if(update_flag && threadIdx.y == 0){                                // top
         int id_helper = id_helper_st + threadIdx.x;
-        //d_halo_sync[id_helper] = halo_sync[0][idx] - io[0][idx].z;
-        d_halo_sync[id_helper] = threadIdx.x + blk_uid/100.f;
+        d_halo_sync[id_helper] = halo_sync[0][idx] - io[0][idx].z;
     }
 
     if(update_flag && threadIdx.y == CUDA_BLOCK_SIZE-1){                // bottom
         int id_helper = id_helper_st + 2*CUDA_BLOCK_SIZE + threadIdx.x;
-        //d_halo_sync[id_helper] = halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x;
-        d_halo_sync[id_helper] = threadIdx.x + blk_uid/100.f;
+        d_halo_sync[id_helper] = halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x;
     }     
 }
 /*
@@ -562,14 +557,13 @@ int main()
     
     for(int i = 0; i < N_ITER; i++){
         evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, Ngx, Ngy, d_helper, curand_states);
-        //write_halo_sync_kernel<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
             cout << "CUDA error in cudaThreadSynchronize, update: " << cudaGetErrorString(cuda_error) << endl;
             exit(-1);
         } 
 
-        //evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
+        evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
             cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
