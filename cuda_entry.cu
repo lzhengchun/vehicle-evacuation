@@ -569,7 +569,7 @@ int main()
             exit(-1);
         } 
 
-        evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
+        //evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
             cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
@@ -588,7 +588,6 @@ int main()
                 cout << "CUDA error in cudaMemcpy, halo: " << cudaGetErrorString(cuda_error) << endl;
                 exit(-1);
             } 
-            cudaThreadSynchronize();
             write_halo_sync(i+1, h_halo_sync, dimGrid.x * dimGrid.y);
         }
         p_swap = d_vcnt_in;
