@@ -434,7 +434,8 @@ int main()
     evacuation_state_init(h_vcnt, h_vcap, Ngx, Ngy);
     float *d_vcnt_in, *d_vcnt_out, *d_vcap, *p_swap;
     float4 *d_turn;
-    cuda_error = cudaMalloc((void**)&d_vcnt, sizeof(float)*Ngx*Ngy);
+    cuda_error = cudaMalloc((void**)&d_vcnt_in, sizeof(float)*Ngx*Ngy);
+    cuda_error = cudaMalloc((void**)&d_vcnt_out, sizeof(float)*Ngx*Ngy);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
