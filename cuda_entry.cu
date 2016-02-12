@@ -243,7 +243,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
 // 3rd step, process halo synchronization!!!! synchronizing via device global memory    
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
 update_flag = 1;
-    int blk_uid = blockIdx.y*4 + blockIdx.x;
+    int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
     int id_helper_st = blk_uid * (4 * CUDA_BLOCK_SIZE);                    // start address in current block
     if(update_flag && threadIdx.x == 0){                                // left
         int id_helper = id_helper_st + 3*CUDA_BLOCK_SIZE + threadIdx.y;
@@ -266,7 +266,8 @@ update_flag = 1;
         int id_helper = id_helper_st + 2*CUDA_BLOCK_SIZE + threadIdx.x;
         //d_halo_sync[id_helper] = halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x;
         d_halo_sync[id_helper] = threadIdx.x + blk_uid/100.f;
-    }       
+    }   
+    __syncthreads();    
 }
 
 /*
