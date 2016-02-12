@@ -579,6 +579,10 @@ int main()
             }  
             write_vehicle_cnt_info(i+1, h_vcnt, Ngx, Ngy);
             cuda_error = cudaMemcpy((void *)h_halo_sync, (void *)d_helper, 4*CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyDeviceToHost);
+            if (cuda_error != cudaSuccess){
+                cout << "CUDA error in cudaMemcpy, halo: " << cudaGetErrorString(cuda_error) << endl;
+                exit(-1);
+            } 
             write_halo_sync(i+1, h_halo_sync, dimGrid.x * dimGrid.y);
         }
         p_swap = d_vcnt_in;
