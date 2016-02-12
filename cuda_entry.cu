@@ -547,7 +547,7 @@ int main()
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
                 exit(-1);
             }  
-            write_vehicle_cnt_info(i, h_vcnt, Ngx, Ngy);
+            write_vehicle_cnt_info(i+1, h_vcnt, Ngx, Ngy);
         }
         p_swap = d_vcnt_in;
         d_vcnt_in = d_vcnt_out;
