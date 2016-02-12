@@ -266,8 +266,16 @@ update_flag = 1;
         int id_helper = id_helper_st + 2*CUDA_BLOCK_SIZE + threadIdx.x;
         //d_halo_sync[id_helper] = halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x;
         d_halo_sync[id_helper] = threadIdx.x + blk_uid/100.f;
-    }   
-    __syncthreads();    
+    }     
+}
+
+__global__ void write_halo_sync_kernel(float *cnt, int Ngx, int Ngy, float * d_halo_sync){
+    int blkid = blockIdx.y * gridDim.x + blockIdx.x;
+    int hst = blkid * 64;
+    if(threadIdx.x == 0){
+        int hid = hst + 3*16 + threadIdx.y;
+        halo_sync[hid] = threadIdx.y / blkid;
+    }
 }
 
 /*
@@ -570,7 +578,8 @@ int main()
             exit(-1);
         } 
 
-        evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
+        //evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
+        write_halo_sync_kernel<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
             cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
