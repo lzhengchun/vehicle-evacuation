@@ -253,19 +253,19 @@ update_flag = 1;
     if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
         int id_helper = id_helper_st + CUDA_BLOCK_SIZE + threadIdx.y;
         //d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
-        d_halo_sync[id_helper] = threadIdx.y +  + blk_uid/100.f;
+        d_halo_sync[id_helper] = threadIdx.y + blk_uid/100.f;
     }
 
     if(update_flag && threadIdx.y == 0){                                // top
         int id_helper = id_helper_st + threadIdx.x;
         //d_halo_sync[id_helper] = halo_sync[0][idx] - io[0][idx].z;
-        d_halo_sync[id_helper] = threadIdx.x +  + blk_uid/100.f;
+        d_halo_sync[id_helper] = threadIdx.x + blk_uid/100.f;
     }
 
     if(update_flag && threadIdx.y == CUDA_BLOCK_SIZE-1){                // bottom
         int id_helper = id_helper_st + 2*CUDA_BLOCK_SIZE + threadIdx.x;
         //d_halo_sync[id_helper] = halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x;
-        d_halo_sync[id_helper] = threadIdx.x +  + blk_uid/100.f;
+        d_halo_sync[id_helper] = threadIdx.x + blk_uid/100.f;
     }       
 }
 
@@ -452,6 +452,11 @@ void write_halo_sync(int time_step, float * p_halo_sync, int n_block)
     char filename[100];
     sprintf( filename, "halo-sync-ts-%d.txt", time_step);
     output_file.open(filename);
+    for(int i=0; i<4*CUDA_BLOCK_SIZE*n_block){
+        output_file << p_halo_sync[idx] << ",";
+    }
+    output_file.close();
+    return;
     for(int b = 0; b < n_block; b++){
         for(int h = 0; h < 4*CUDA_BLOCK_SIZE; h++){
             int idx = b*4*CUDA_BLOCK_SIZE + h;       
