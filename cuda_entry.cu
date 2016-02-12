@@ -19,8 +19,8 @@
 #define CUDA_BLOCK_SIZE    32
 #define VEHICLE_PER_STEP   1.5
 #define EPS                1e-5
-#define ENV_DIM_X          200
-#define ENV_DIM_Y          200
+#define ENV_DIM_X          50
+#define ENV_DIM_Y          50
 #define N_ITER             1
 #define MAX_CAP            10.f
 
