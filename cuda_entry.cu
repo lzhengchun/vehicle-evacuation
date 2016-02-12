@@ -248,7 +248,7 @@ update_flag = 1;
     if(update_flag && threadIdx.x == 0){                                // left
         int id_helper = id_helper_st + 3*CUDA_BLOCK_SIZE + threadIdx.y;
         //d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
-        d_halo_sync[id_helper] = threadIdx.y + blkid/10.f;
+        d_halo_sync[id_helper] = threadIdx.y + blk_uid/10.f;
     }      
     if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
         int id_helper = id_helper_st + CUDA_BLOCK_SIZE + threadIdx.y;
