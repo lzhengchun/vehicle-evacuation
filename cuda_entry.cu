@@ -112,10 +112,10 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
         if(update_flag){
             pturn_c = pturn[uni_id-1];
             cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id-1]);
-            //io[idy][0].x = cnt_out * pturn_c.x;      // go north
+            io[idy][0].x = cnt_out * pturn_c.x;      // go north
             io[idy][0].y = cnt_out * pturn_c.y;      // go east
-            //io[idy][0].z = cnt_out * pturn_c.z;      // go south
-            //io[idy][0].w = cnt_out * pturn_c.w;      // go west    
+            io[idy][0].z = cnt_out * pturn_c.z;      // go south
+            io[idy][0].w = cnt_out * pturn_c.w;      // go west    
             halo_sync[3][idy] = io[idy][0].y;        // will be used to computing how many vehicles get accepted by west cell
         }else{
             //io[idy][0].x = 0;      // go north
@@ -129,9 +129,9 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
         if(update_flag){
             pturn_c = pturn[uni_id+1];
             cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id+1]);
-            //io[idy][CUDA_BLOCK_SIZE+1].x = cnt_out * pturn_c.x;    // go north
-            //io[idy][CUDA_BLOCK_SIZE+1].y = cnt_out * pturn_c.y;    // go east
-            //io[idy][CUDA_BLOCK_SIZE+1].z = cnt_out * pturn_c.z;    // go south
+            io[idy][CUDA_BLOCK_SIZE+1].x = cnt_out * pturn_c.x;    // go north
+            io[idy][CUDA_BLOCK_SIZE+1].y = cnt_out * pturn_c.y;    // go east
+            io[idy][CUDA_BLOCK_SIZE+1].z = cnt_out * pturn_c.z;    // go south
             io[idy][CUDA_BLOCK_SIZE+1].w = cnt_out * pturn_c.w;    // go west   
             halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].w;
         }else{
