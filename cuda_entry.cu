@@ -243,25 +243,25 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
 // 3rd step, process halo synchronization!!!! synchronizing via device global memory    
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
-    int id_helper = blk_uid * (4 * CUDA_BLOCK_SIZE);                    // start address in current block
+    int id_helper_st = blk_uid * (4 * CUDA_BLOCK_SIZE);                    // start address in current block
     if(update_flag && threadIdx.x == 0){                                // left
-        id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
+        int id_helper = id_helper_st + 3*CUDA_BLOCK_SIZE + threadIdx.y;
         d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
     }      
     if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
-        id_helper += CUDA_BLOCK_SIZE + threadIdx.y;
+        int id_helper = id_helper_st + CUDA_BLOCK_SIZE + threadIdx.y;
         d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
     }
 
     if(update_flag && threadIdx.y == 0){                                // top
-        id_helper += threadIdx.x;
+        int id_helper = id_helper_st + threadIdx.x;
         d_halo_sync[id_helper] = halo_sync[0][idx] - io[0][idx].z;
     }
 
     if(update_flag && threadIdx.y == CUDA_BLOCK_SIZE-1){                // bottom
-        id_helper += 2*CUDA_BLOCK_SIZE + threadIdx.x;
+        int id_helper = id_helper_st + 2*CUDA_BLOCK_SIZE + threadIdx.x;
         //d_halo_sync[id_helper] = halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x;
-        d_halo_sync[id_helper] = 3.333;
+        d_halo_sync[id_helper] = 3.3;
     }       
 }
 
