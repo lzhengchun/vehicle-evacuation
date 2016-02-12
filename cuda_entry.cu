@@ -250,7 +250,8 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     }      
     if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
         int id_helper = id_helper_st + CUDA_BLOCK_SIZE + threadIdx.y;
-        d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
+        //d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
+        d_halo_sync[id_helper] = io[idy][CUDA_BLOCK_SIZE+1].w;
     }
 
     if(update_flag && threadIdx.y == 0){                                // top
