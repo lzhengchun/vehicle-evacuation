@@ -280,8 +280,7 @@ __global__ void evacuation_halo_sync(float *cnt, int Ngx, int Ngy, float * d_hal
         int id_helper = ( (blockIdx.y+1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
         id_helper += threadIdx.x;
         cnt[uni_id] -= d_halo_sync[id_helper]; 
-    }       
-    
+    }
 }
 /*
 ***********************************************************************************************************
@@ -335,8 +334,8 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
         for(int c = 0; c < Ngx; c++){
             int idx = r*Ngx+c;
             p_turn[idx].x = 0.1;
-            p_turn[idx].y = 0.7;
-            p_turn[idx].z = 0.1;
+            p_turn[idx].y = 0.4;
+            p_turn[idx].z = 0.4;
             p_turn[idx].w = 0.1;
         }
     }
