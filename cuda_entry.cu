@@ -274,7 +274,7 @@ __global__ void write_halo_sync_kernel(float *cnt, int Ngx, int Ngy, float * d_h
     int hst = blkid * 64;
     if(threadIdx.x == 0){
         int hid = hst + 3*16 + threadIdx.y;
-        halo_sync[hid] = threadIdx.y / blkid;
+        d_halo_sync[hid] = threadIdx.y / blkid;
     }
 }
 
@@ -571,7 +571,8 @@ int main()
     write_vehicle_cnt_info(0, h_vcnt, Ngx, Ngy);  // initial state
     
     for(int i = 0; i < N_ITER; i++){
-        evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, Ngx, Ngy, d_helper, curand_states);
+        //evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, Ngx, Ngy, d_helper, curand_states);
+        write_halo_sync_kernel<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
             cout << "CUDA error in cudaThreadSynchronize, update: " << cudaGetErrorString(cuda_error) << endl;
@@ -579,7 +580,7 @@ int main()
         } 
 
         //evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
-        write_halo_sync_kernel<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
+        
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
             cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
