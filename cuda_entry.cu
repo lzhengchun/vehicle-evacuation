@@ -527,7 +527,7 @@ int main()
     }
     // config to use more shared memory, less L1 cache
     cudaFuncSetCacheConfig(evacuation_update, cudaFuncCachePreferShared);
-    
+    write_vehicle_cnt_info(0, h_vcnt, Ngx, Ngy);  // initial state
     for(int i = 0; i < N_ITER; i++){
         evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, Ngx, Ngy, d_helper, curand_states);
         cuda_error = cudaThreadSynchronize();
@@ -541,7 +541,7 @@ int main()
             cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
             exit(-1);
         } 
-        if(i%50 == 0) {
+        if((i+1)%50 == 0) {
             cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_out, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost);
             if (cuda_error != cudaSuccess){
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
