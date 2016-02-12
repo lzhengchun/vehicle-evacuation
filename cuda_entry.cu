@@ -569,8 +569,7 @@ int main()
             cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
             exit(-1);
         } 
-        //if((i+1)%50 == 0) {
-        if(1){
+        if((i+1)%50 == 0) {
             cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_out, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost);
             if (cuda_error != cudaSuccess){
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
