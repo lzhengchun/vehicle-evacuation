@@ -425,8 +425,8 @@ void write_vehicle_cnt_info(int time_step, float * p_vcnt, int Ngx, int Ngy)
     char filename[100];
     sprintf( filename, "vehicle-cnt-info-ts-%d.txt", time_step);
     output_file.open(filename);
-    for(int r = 1; r < Ngy-1; r++){
-        for(int c = 1; c < Ngx; c++){
+    for(int r = 0; r < Ngy; r++){
+        for(int c = 0; c < Ngx; c++){
             int idx = r*Ngx+c;
             output_file << p_vcnt[idx] << ",";
         }
