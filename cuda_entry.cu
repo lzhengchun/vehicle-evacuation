@@ -334,8 +334,8 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
         for(int c = 0; c < Ngx; c++){
             int idx = r*Ngx+c;
             p_turn[idx].x = 0.1;
-            p_turn[idx].y = 0.4;
-            p_turn[idx].z = 0.4;
+            p_turn[idx].y = 0.3;
+            p_turn[idx].z = 0.5;
             p_turn[idx].w = 0.1;
         }
     }
