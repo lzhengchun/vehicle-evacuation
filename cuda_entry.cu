@@ -167,42 +167,42 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
         switch(order[rnd][i])
         {
             case 0:	                             // enter from top 
-                if(diff_cap > io[idx][idy-1].z)
+                if(diff_cap > io[idy-1][idx].z)
                 {
-                    diff_cap -= io[idx][idy-1].z;
-                    io[idx][idy-1].z = 0.f;
+                    diff_cap -= io[idy-1][idx].z;
+                    io[idy-1][idx].z = 0.f;
                 }else{
-                    io[idx][idy-1].z -= diff_cap;
+                    io[idy-1][idx].z -= diff_cap;
                     diff_cap = 0.0;
                 }
                 break;
             case 1:                              // enter from left
-                if(diff_cap > io[idx+1][idy].w)
+                if(diff_cap > io[idy][idx+1].w)
                 {
-                    diff_cap -= io[idx+1][idy].w;
-                    io[idx+1][idy].w = 0.f;
+                    diff_cap -= io[idy][idx+1].w;
+                    io[idy][idx+1].w = 0.f;
                 }else{
-                    io[idx+1][idy].w -= diff_cap;
+                    io[idy][idx+1].w -= diff_cap;
                     diff_cap = 0.0;
                 }
                 break;
             case 2:                              // enter from bottom
-                if(diff_cap > io[idx][idy+1].x)
+                if(diff_cap > io[idy+1][idx].x)
                 {
-                    diff_cap -= io[idx][idy+1].x;
-                    io[idx][idy+1].x = 0.f;
+                    diff_cap -= io[idy+1][idx].x;
+                    io[idy+1][idx].x = 0.f;
                 }else{
-                    io[idx][idy+1].x -= diff_cap;
+                    io[idy+1][idx].x -= diff_cap;
                     diff_cap = 0.0;
                 }
                 break;
             case 3:                              // enter from right
-                if(diff_cap > io[idx-1][idy].y)
+                if(diff_cap > io[idy][idx-1].y)
                 {
-                    diff_cap -= io[idx-1][idy].y;
-                    io[idx-1][idy].y = 0.f;
+                    diff_cap -= io[idy][idx-1].y;
+                    io[idy][idx-1].y = 0.f;
                 }else{
-                    io[idx-1][idy].y -= diff_cap;
+                    io[idy][idx-1].y -= diff_cap;
                     diff_cap = 0.0;
                 }
                 break;                                                            
