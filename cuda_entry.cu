@@ -319,7 +319,7 @@ __global__ void evacuation_halo_sync(float *cnt, float *cap, float4 *pturn,
 * return: none
 ***********************************************************************************************************
 */
-void evacuation_cuda_init(int Ngx, int Ngy, curandState_t* curand_states;){
+void evacuation_cuda_init(int Ngx, int Ngy, curandState_t* curand_states){
     int nthread = Ngx * Ngy;
     // allocate space on the GPU for the random states 
     cudaMalloc((void**) &curand_states, nthread * sizeof(curandState_t));
