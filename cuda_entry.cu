@@ -274,7 +274,7 @@ __global__ void write_halo_sync_kernel(float *cnt, int Ngx, int Ngy, float * d_h
     int hst = blkid * 64;
     if(threadIdx.x == 0){
         int hid = hst + 3*16 + threadIdx.y;
-        d_halo_sync[hid] = threadIdx.y / blkid;
+        d_halo_sync[hid] = threadIdx.y + blkid/10.f;
     }
 }
 
