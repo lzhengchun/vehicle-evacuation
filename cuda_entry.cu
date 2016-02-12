@@ -21,7 +21,7 @@
 #define EPS                1e-5
 #define ENV_DIM_X          50
 #define ENV_DIM_Y          50
-#define N_ITER             1
+#define N_ITER             500
 #define MAX_CAP            10.f
 
 using namespace std;
@@ -246,18 +246,16 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     int id_helper_st = blk_uid * (4 * CUDA_BLOCK_SIZE);                    // start address in current block
     if(update_flag && threadIdx.x == 0){                                // left
         int id_helper = id_helper_st + 3*CUDA_BLOCK_SIZE + threadIdx.y;
-        d_halo_sync[id_helper] = halo_sync[3][idy];// - io[idy][0].y;      // number of vehicles which actully go out
+        d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
     }      
     if(update_flag && threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
         int id_helper = id_helper_st + CUDA_BLOCK_SIZE + threadIdx.y;
-        //d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
-        d_halo_sync[id_helper] = io[idy][CUDA_BLOCK_SIZE+1].w;
+        d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
     }
 
     if(update_flag && threadIdx.y == 0){                                // top
         int id_helper = id_helper_st + threadIdx.x;
         d_halo_sync[id_helper] = halo_sync[0][idx] - io[0][idx].z;
-        d_halo_sync[id_helper] = 3.3;
     }
 
     if(update_flag && threadIdx.y == CUDA_BLOCK_SIZE-1){                // bottom
