@@ -244,7 +244,6 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
     int id_helper = blk_uid * (4 * CUDA_BLOCK_SIZE);                    // start address in current block
-    update_flag = true;
     if(update_flag && threadIdx.x == 0){                                // left
         id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
         d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
@@ -367,7 +366,6 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
         }
     }
 }
-
 /*
 ***********************************************************************************************************
 * func   name: evacuation_state_init
@@ -429,6 +427,33 @@ void write_vehicle_cnt_info(int time_step, float * p_vcnt, int Ngx, int Ngy)
         for(int c = 0; c < Ngx; c++){
             int idx = r*Ngx+c;
             output_file << p_vcnt[idx] << ",";
+        }
+        output_file << endl;
+    }    
+    output_file.close();
+}
+/*
+***********************************************************************************************************
+* func   name: write_vehicle_cnt_info
+* description: write results to file for visualizing
+* parameters :
+*             none
+* return: none
+***********************************************************************************************************
+*/
+void write_halo_sync(int time_step, float * p_halo_sync, int n_block)
+{
+    ofstream output_file;
+    char filename[100];
+    sprintf( filename, "halo-sync-ts-%d.txt", time_step);
+    output_file.open(filename);
+    for(int b = 0; b < n_block; b++){
+        for(int h = 0; h < 4*CUDA_BLOCK_SIZE; h++){
+            int idx = b*4*CUDA_BLOCK_SIZE + h;
+            output_file << p_vcnt[idx] << ",";
+            if(h % CUDA_BLOCK_SIZE == 0){
+                output_file << "||";
+            }
         }
         output_file << endl;
     }    
@@ -525,9 +550,11 @@ int main()
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }
+    float *h_halo_sync = new float[4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y];
     // config to use more shared memory, less L1 cache
     cudaFuncSetCacheConfig(evacuation_update, cudaFuncCachePreferShared);
     write_vehicle_cnt_info(0, h_vcnt, Ngx, Ngy);  // initial state
+    
     for(int i = 0; i < N_ITER; i++){
         evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, Ngx, Ngy, d_helper, curand_states);
         cuda_error = cudaThreadSynchronize();
@@ -535,6 +562,7 @@ int main()
             cout << "CUDA error in cudaThreadSynchronize, update: " << cudaGetErrorString(cuda_error) << endl;
             exit(-1);
         } 
+
         evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
@@ -548,6 +576,8 @@ int main()
                 exit(-1);
             }  
             write_vehicle_cnt_info(i+1, h_vcnt, Ngx, Ngy);
+            cuda_error = cudaMemcpy((void *)h_halo_sync, (void *)d_helper, 4*CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyDeviceToHost);
+            write_halo_sync(i+1, h_halo_sync, dimGrid.x * dimGrid.y);
         }
         p_swap = d_vcnt_in;
         d_vcnt_in = d_vcnt_out;
