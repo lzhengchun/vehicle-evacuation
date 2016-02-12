@@ -22,7 +22,7 @@
 #define ENV_DIM_X          200
 #define ENV_DIM_Y          200
 #define N_ITER             500
-
+#define MAX_CAP            10.f
 
 using namespace std;
 /*
@@ -382,10 +382,33 @@ void evacuation_state_init(float *p_cnt, float *p_cap, int Ngx, int Ngy)
     for(int r = 1; r < Ngy-1; r++){
         for(int c = 1; c < Ngx-1; c++){
             int idx = r*Ngx+c;
-            p_cap[idx] = 10.0;
+            p_cap[idx] = MAX_CAP;
             p_cnt[idx] = p_cap[idx] * rand() / RAND_MAX;
         }
     }
+    // edge
+    int idx;
+    // first row
+    for(int c = 0; c < Ngx; c++){
+        p_cap[c] = MAX_CAP;
+        p_cnt[c] = 0;
+    }
+    // left and right
+    for(int r = 0; r < Ngy; r++){
+        idx = r * Ngx + 0;
+        p_cap[idx] = MAX_CAP;
+        p_cnt[idx] = 0;
+        
+        idx = r * Ngx + Ngx-1;
+        p_cap[idx] = MAX_CAP;
+        p_cnt[idx] = 0;        
+    }
+    // bottom
+    for(int c = 0; c < Ngx; c++){
+        idx = (Ngy-1)*Ngx + c;
+        p_cap[c] = MAX_CAP;
+        p_cnt[c] = 0;
+    }    
 }
 /*
 ***********************************************************************************************************
@@ -400,7 +423,7 @@ void write_vehicle_cnt_info(int time_step, float * p_vcnt, int Ngx, int Ngy)
 {
     ofstream output_file;
     char filename[100];
-    sprintf( filename, "vehicle-cnt-info-ts%d.txt", time_step);
+    sprintf( filename, "vehicle-cnt-info-ts-%d.txt", time_step);
     output_file.open(filename);
     for(int r = 1; r < Ngy-1; r++){
         for(int c = 1; c < Ngx; c++){
@@ -426,9 +449,9 @@ int main()
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                             // order: north -> east -> south -> west
     cudaError_t cuda_error;
-    float *h_vcnt = new float[Ngx*Ngy];
-    float *h_vcap = new float[Ngx*Ngy];
-    float4 *h_turn = new float4[Ngx*Ngy];
+    float *h_vcnt = new float[Ngx*Ngy]();
+    float *h_vcap = new float[Ngx*Ngy]();
+    float4 *h_turn = new float4[Ngx*Ngy]();
     evacuation_field_init(h_turn, Ngx, Ngy);
     evacuation_state_init(h_vcnt, h_vcap, Ngx, Ngy);
     float *d_vcnt_in, *d_vcnt_out, *d_vcap, *p_swap;
