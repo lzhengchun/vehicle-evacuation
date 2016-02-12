@@ -357,8 +357,8 @@ void evacuation_cuda_finalize()
 */
 void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
 {
-    for(int r = 1; r < Ngy-1; r++){
-        for(int c = 1; c < Ngx-1; c++){
+    for(int r = 0; r < Ngy; r++){
+        for(int c = 0; c < Ngx; c++){
             int idx = r*Ngx+c;
             p_turn[idx].x = 0.1;
             p_turn[idx].y = 0.7;
@@ -535,7 +535,7 @@ int main()
             cout << "CUDA error in cudaThreadSynchronize, update: " << cudaGetErrorString(cuda_error) << endl;
             exit(-1);
         } 
-        evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, d_vcap, d_turn, Ngx, Ngy, d_helper);
+        //evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, d_vcap, d_turn, Ngx, Ngy, d_helper);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
             cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
