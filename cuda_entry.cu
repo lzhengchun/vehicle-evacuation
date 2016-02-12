@@ -453,11 +453,11 @@ void write_halo_sync(int time_step, float * p_halo_sync, int n_block)
     output_file.open(filename);
     for(int b = 0; b < n_block; b++){
         for(int h = 0; h < 4*CUDA_BLOCK_SIZE; h++){
-            int idx = b*4*CUDA_BLOCK_SIZE + h;
-            if(h % CUDA_BLOCK_SIZE == 0){
-                output_file << "||";
-            }            
+            int idx = b*4*CUDA_BLOCK_SIZE + h;       
             output_file << p_halo_sync[idx] << ",";
+            if((h+1) % CUDA_BLOCK_SIZE == 0){
+                output_file << "||";
+            }             
         }
         output_file << endl;
     }    
