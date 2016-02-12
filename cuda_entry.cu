@@ -243,7 +243,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
 // 3rd step, process halo synchronization!!!! synchronizing via device global memory    
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
 update_flag = 1;
-    int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
+    int blk_uid = blockIdx.y*4 + blockIdx.x;
     int id_helper_st = blk_uid * (4 * CUDA_BLOCK_SIZE);                    // start address in current block
     if(update_flag && threadIdx.x == 0){                                // left
         int id_helper = id_helper_st + 3*CUDA_BLOCK_SIZE + threadIdx.y;
@@ -452,11 +452,6 @@ void write_halo_sync(int time_step, float * p_halo_sync, int n_block)
     char filename[100];
     sprintf( filename, "halo-sync-ts-%d.txt", time_step);
     output_file.open(filename);
-    for(int i=0; i<4*CUDA_BLOCK_SIZE*n_block; i++){
-        output_file << p_halo_sync[i] << ",";
-    }
-    output_file.close();
-    return;
     for(int b = 0; b < n_block; b++){
         for(int h = 0; h < 4*CUDA_BLOCK_SIZE; h++){
             int idx = b*4*CUDA_BLOCK_SIZE + h;       
