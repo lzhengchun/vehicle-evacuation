@@ -343,7 +343,7 @@ void evacuation_cuda_init(int Ngx, int Ngy, curandState_t* curand_states){
 */
 void evacuation_cuda_finalize()
 {
-    cudaFree(curand_states);
+    //cudaFree(curand_states);
 }
 
 /*
