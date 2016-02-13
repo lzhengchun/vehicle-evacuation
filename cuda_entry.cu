@@ -135,7 +135,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
         if(update_flag){
             pturn_c = pturn[uni_id-Ngx];
             cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id-Ngx]);
-            io[0][idx].z = cnt_out * pturn_c.z;    // go south       
+            io[0][idx].z = cnt_out * pturn_c.z;      // go south       
             halo_sync[0][idx] = io[0][idx].z;
         }else{
             io[0][idx].z = 0;    // go south        
@@ -219,7 +219,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
 // 3rd step, process halo synchronization!!!! synchronizing via device global memory    
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
-    int id_helper_st = blk_uid * (4 * CUDA_BLOCK_SIZE);                    // start address in current block
+    int id_helper_st = blk_uid * (4 * CUDA_BLOCK_SIZE);                 // start address in current block
     if(update_flag && threadIdx.x == 0){                                // left
         int id_helper = id_helper_st + 3*CUDA_BLOCK_SIZE + threadIdx.y;
         d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
@@ -378,8 +378,8 @@ void evacuation_state_init(float *p_cnt, float *p_cap, int Ngx, int Ngy)
     // bottom
     for(int c = 0; c < Ngx; c++){
         idx = (Ngy-1)*Ngx + c;
-        p_cap[c] = MAX_CAP;
-        p_cnt[c] = 0;
+        p_cap[idx] = MAX_CAP;
+        p_cnt[idx] = 0;
     }    
 }
 /*
