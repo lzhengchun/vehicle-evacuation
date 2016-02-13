@@ -91,8 +91,9 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     }
     __shared__ float4 io[CUDA_BLOCK_SIZE+2][CUDA_BLOCK_SIZE+2];
     __shared__ float halo_sync[4][CUDA_BLOCK_SIZE];  // order: N -> E -> S -> W
-    // use the flag to ignore env edge
+    // use the flag to ignore outmost layer
     bool update_flag = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
+    bool exit_flag   = g_idx > 80 && g_idx <= Ngx-1 && g_idy == Ngy-1;
     
     float cnt_temp = p_vcnt_in[uni_id];
     int idx = threadIdx.x + 1, idy = threadIdx.y + 1;
@@ -107,7 +108,8 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     io[idy][idx].z = cnt_out * pturn_c.z;    // go south
     io[idy][idx].w = cnt_out * pturn_c.w;    // go west
 
-    // extra work for edge threads, for the halo
+    // extra work for edge threads, for the halo, only one direction needs determine
+    // aussume that the ourmost layer never have car back, i.e., they are exit
     if(threadIdx.x == 0){                            // left halo
         if(update_flag){
             pturn_c = pturn[uni_id-1];
@@ -115,7 +117,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
             io[idy][0].y = cnt_out * pturn_c.y;      // go east
             halo_sync[3][idy] = io[idy][0].y;        // will be used to computing how many vehicles get accepted by west cell
         }else{
-            io[idy][0].y = 0;      // go east   
+            io[idy][0].y = 0;                        // go east   
             halo_sync[3][idy] = 0;          
         }
     }
@@ -153,7 +155,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
             halo_sync[2][idx] = 0;              
         }
     }
-    // then wait untill all the threads in the sam thread block finish their outgoing conut processing
+    // then wait untill all the threads in the same thread block finish their outgoing computing processing
     __syncthreads();  
 
 // 2nd step, process incoming vehicles, it will update outgoing requests of neighboors. 
@@ -211,7 +213,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
 
     __syncthreads();
 // add saturated vehicle back to counter, pre_cnt - (want_go - saturated) + incoming(in_cap - in_cap_left)
-    if(update_flag){
+    if(!exit_flag){
         p_vcnt_out[uni_id] = cnt_temp - (cnt_out_bk - io[idy][idx].x - io[idy][idx].y - io[idy][idx].z - io[idy][idx].w) 
                     + (diff_bk - diff_cap);
         __syncthreads();
