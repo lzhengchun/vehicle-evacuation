@@ -17,4 +17,4 @@ exit: bottom right, 80 < x <= 100, and right 40 <= y <= 50
 ![alt text](samples/animation2.gif)
 
 #Note
-gif was created by https://giphy.com/create/gifmaker via png image plotted by http://matplotlib.org
+gif was created by https://giphy.com/create/gifmaker with png image plotted by http://matplotlib.org
