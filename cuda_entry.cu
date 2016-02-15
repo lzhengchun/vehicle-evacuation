@@ -590,7 +590,7 @@ int main()
     write_vehicle_cnt_info(0, h_vcnt, Ngx, Ngy);  // initial state
     
     for(int i = 0; i < N_ITER; i++){
-        evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, d_tlinfo, Ngx, Ngy, d_helper, curand_states);
+        evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, d_tlinfo, Ngx, Ngy, d_helper, i, curand_states);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
             cout << "CUDA error in cudaThreadSynchronize, update: " << cudaGetErrorString(cuda_error) << endl;
