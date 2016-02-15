@@ -19,6 +19,7 @@ exit: bottom right, 80 < x <= 100, and right 40 <= y <= 50
 #sample-3
 
 with traffic light control
+
 ![alt text](samples/animation3.gif)
 
 #Note
