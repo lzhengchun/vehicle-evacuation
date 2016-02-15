@@ -73,16 +73,16 @@ __global__ void curand_init_all(unsigned int seed, curandState_t* states, int Ng
                one cell, map was divided to cell as an intersection model (corresponding turn probabilities 
                were set as zero if the cell is not a real intersection in reality).
 * parameters :
-*             p_vcnt_in
-*             p_vcnt_out
-*             cap
-*             pturn
-*             d_tl
-*             Ngx
-*             Ngy
-*             d_halo_sync
-*             ts
-*             states
+*             p_vcnt_in   : device pointer to vehicle counter as input
+*             p_vcnt_out  : device pointer to vehicle counter as output
+*             cap         : device pointer to cell capacity
+*             pturn       : device pointer to turn probabilities
+*             d_tl        : device pointer to traffic light information
+*             Ngx         : map size, X dimension
+*             Ngy         : map size, Y dimension
+*             d_halo_sync : pointer for thread block border synchronization
+*             ts          : current time step
+*             states      : cuda random state
 * return: none
 * note:   cuda vec 4 type: x->north; y->east; z->south; w->west; 
 ***********************************************************************************************************
@@ -485,16 +485,17 @@ int main()
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                                  // order: north -> east -> south -> west
     cudaError_t cuda_error;
-    float *h_vcnt = new float[Ngx*Ngy]();             // host memory for vehicle counter
-    float *h_vcap = new float[Ngx*Ngy]();             // host memory for vehicle capacity in each of the cells
-    float4 *h_turn = new float4[Ngx*Ngy]();           // host memory for turn probabilities
-    uchar2 *h_tlof = new uchar2[Ngx*Ngy]();           // host memory for traffic light time offset, and pulse wideth for horizontal
+    float *h_vcnt    = new float[Ngx*Ngy]();          // host memory for vehicle counter
+    float *h_vcap    = new float[Ngx*Ngy]();          // host memory for vehicle capacity in each of the cells
+    float4 *h_turn   = new float4[Ngx*Ngy]();         // host memory for turn probabilities
+    uchar2 *h_tlinfo = new uchar2[Ngx*Ngy]();         // host memory for traffic light time offset, and pulse wideth for horizontal
     evacuation_field_init(h_turn, Ngx, Ngy);	      // initialize turn probabilities (the field) 
-    evacuation_state_init(h_vcnt, h_vcap, h_tlof, Ngx, Ngy);  // initialize vehicle counters and cell capacity
+    evacuation_state_init(h_vcnt, h_vcap, h_tlinfo, Ngx, Ngy);  // initialize vehicle counters and cell capacity
     
     // device memory for counter (as input), counter (as output), capacity, temporary for swaping
     float *d_vcnt_in, *d_vcnt_out, *d_vcap, *p_swap;
     float4 *d_turn;	                             	  // device memory for turn probabilities 
+    uchar2 *d_tlinfo;
     dim3 dimBlock(CUDA_BLOCK_SIZE, CUDA_BLOCK_SIZE, 1);
     dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
     // allocate device memory for vehicle counters as input
@@ -517,6 +518,12 @@ int main()
     }
     // allocate device memory for saving vehicle turn probabilities
     cuda_error = cudaMalloc((void**)&d_turn, sizeof(float4)*Ngx*Ngy);
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }     
+    // allocate device memory for saving traffic light configuration
+    cuda_error = cudaMalloc((void**)&d_tlinfo, sizeof(uchar2)*Ngx*Ngy);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
@@ -561,7 +568,12 @@ int main()
         cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }    
-        
+    // copy traffic light configuration from host to device
+    cuda_error = cudaMemcpy((void *)d_tlinfo, (void *)h_tlinfo, sizeof(uchar2)*Ngx*Ngy, cudaMemcpyHostToDevice);
+    if (cuda_error != cudaSuccess){
+        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
+        exit(-1);
+    }         
     int helper_size = 4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y * sizeof(float);
     // allocate device memory to synchronizing block border counters
     cuda_error = cudaMalloc((void**)&d_helper, helper_size);
@@ -578,7 +590,7 @@ int main()
     write_vehicle_cnt_info(0, h_vcnt, Ngx, Ngy);  // initial state
     
     for(int i = 0; i < N_ITER; i++){
-        evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, Ngx, Ngy, d_helper, curand_states);
+        evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, d_tlinfo, Ngx, Ngy, d_helper, curand_states);
         cuda_error = cudaThreadSynchronize();
         if (cuda_error != cudaSuccess){
             cout << "CUDA error in cudaThreadSynchronize, update: " << cudaGetErrorString(cuda_error) << endl;
