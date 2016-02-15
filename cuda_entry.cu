@@ -104,7 +104,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     // use the flag to ignore outmost layer
     bool update_flag = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
     bool exit_flag   = g_idx > 80 && g_idx <= Ngx-1 && g_idy == Ngy-1;
-    exit_flag = exit_flag || (g_idx == Ngx-1 && g_idy >= 0 && g_idy <= 20);
+    exit_flag = exit_flag || (g_idx == Ngx-1 && g_idy >= 50 && g_idy <= 70);
     
     float cnt_temp = p_vcnt_in[uni_id];
     int idx = threadIdx.x + 1, idy = threadIdx.y + 1;
