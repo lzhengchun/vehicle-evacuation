@@ -73,13 +73,23 @@ __global__ void curand_init_all(unsigned int seed, curandState_t* states, int Ng
                one cell, map was divided to cell as an intersection model (corresponding turn probabilities 
                were set as zero if the cell is not a real intersection in reality).
 * parameters :
-*             none
+*             p_vcnt_in
+*             p_vcnt_out
+*             cap
+*             pturn
+*             d_tl
+*             Ngx
+*             Ngy
+*             d_halo_sync
+*             ts
+*             states
 * return: none
 * note:   cuda vec 4 type: x->north; y->east; z->south; w->west; 
 ***********************************************************************************************************
 */
 __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *cap, float4 *pturn, 
-                                  int Ngx, int Ngy, float * d_halo_sync, curandState_t* states) 
+                                  uchar2 *d_tl, int Ngx, int Ngy, float * d_halo_sync, int time_step, 
+                                  curandState_t* states) 
 {
     int g_idx = blockIdx.x*blockDim.x + threadIdx.x;
     int g_idy = blockIdx.y*blockDim.y + threadIdx.y;
@@ -104,15 +114,24 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     float cnt_out = fminf(VEHICLE_PER_STEP, cnt_temp);
     float cnt_out_bk = cnt_out;
     float4 pturn_c = pturn[uni_id];          // turn probabilities of the cell [i, j]
-    io[idy][idx].x = cnt_out * pturn_c.x;    // go north
-    io[idy][idx].y = cnt_out * pturn_c.y;    // go east
-    io[idy][idx].z = cnt_out * pturn_c.z;    // go south
-    io[idy][idx].w = cnt_out * pturn_c.w;    // go west
-
+    uchar2 tl_info = d_tl[uni_id];           // traffic light information
+    if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){
+        io[idy][idx].x = 0.f;                    // go north
+        io[idy][idx].y = cnt_out * pturn_c.y;    // go east        
+        io[idy][idx].z = 0.f;                    // go south
+        io[idy][idx].w = cnt_out * pturn_c.w;    // go west        
+    }
+    else{
+        io[idy][idx].x = cnt_out * pturn_c.x;    // go north
+        io[idy][idx].y = 0.f;                    // go east       
+        io[idy][idx].z = cnt_out * pturn_c.z;    // go south
+        io[idy][idx].w = 0.f;                    // go west        
+    }
     // extra work for edge threads, for the halo, only one direction needs determine
     // aussume that the ourmost layer never have car back, i.e., they are exit
     if(threadIdx.x == 0){                            // left halo
-        if(update_flag){
+        tl_info = d_tl[uni_id-1];                    // traffic light
+        if(update_flag && ((time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y) ){
             pturn_c = pturn[uni_id-1];
             cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id-1]);
             io[idy][0].y = cnt_out * pturn_c.y;      // go east
@@ -122,8 +141,10 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
             halo_sync[3][idy] = 0;          
         }
     }
+    
     if(threadIdx.x == CUDA_BLOCK_SIZE-1){            // right halo
-        if(update_flag){
+        tl_info = d_tl[uni_id+1];                    // traffic light
+        if(update_flag && ((time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y)){
             pturn_c = pturn[uni_id+1];
             cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id+1]);
             io[idy][CUDA_BLOCK_SIZE+1].w = cnt_out * pturn_c.w;    // go west   
@@ -135,7 +156,8 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     }
 
     if(threadIdx.y == 0){	                         // top halo 
-        if(update_flag){
+        tl_info = d_tl[uni_id-Ngx];                  // traffic light
+        if(update_flag && !((time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y)){
             pturn_c = pturn[uni_id-Ngx];
             cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id-Ngx]);
             io[0][idx].z = cnt_out * pturn_c.z;      // go south       
@@ -146,7 +168,8 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
         }
     }    
     if(threadIdx.y == CUDA_BLOCK_SIZE-1){            // bottom halo
-        if(update_flag){
+        tl_info = d_tl[uni_id+Ngx];                  // traffic light
+        if(update_flag && !((time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y)){
             pturn_c = pturn[uni_id+Ngx];
             cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id+Ngx]);        
             io[CUDA_BLOCK_SIZE+1][idx].x = cnt_out * pturn_c.x;    // go north
