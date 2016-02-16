@@ -221,7 +221,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                 io[CUDA_BLOCK_SIZE+1][idx].w = 0.f;                                    // go west        
             }
             io_bk[CUDA_BLOCK_SIZE+1][idx] = io[CUDA_BLOCK_SIZE+1][idx]; 
-        else{
+        }else{
              io[CUDA_BLOCK_SIZE+1][idx] = make_float4(0.f, 0.f, 0.f, 0.f); 
         }
         halo_sync[2][idx] = io[CUDA_BLOCK_SIZE+1][idx].x;      	                  // will be used to computing how many vehicles get accepted by west cell
