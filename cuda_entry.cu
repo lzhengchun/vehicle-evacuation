@@ -66,9 +66,9 @@ __global__ void curand_init_all(unsigned int seed, curandState_t* states, int Ng
                 &states[uni_id]);
 }
 
-__device__ float4 operator*(const float4 & a, const float4 & b) {
+__device__ float4 operator*(const float4 & a, const float & b) {
 
-    return make_float4(a.x*b.x, a.y*b.y, a.z*b.z, a.w*b.w);
+    return make_float4(a.x*b, a.y*b, a.z*b, a.w*b);
 }
 /*
 ***********************************************************************************************************
@@ -112,6 +112,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     bool exit_flag   = g_idx > 80 && g_idx <= Ngx-1 && g_idy == Ngy-1;
     exit_flag = exit_flag || (g_idx == Ngx-1 && g_idy >= 50 && g_idy <= 70);
     
+    uchar2 tl_info = d_tl[uni_id];           	                 // traffic light information
     bool tl_hor = (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y; // current traffic light
    
     float4 cnt_temp = p_vcnt_in[uni_id];
@@ -119,8 +120,6 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
 /// 1st step, fill in current [r, c] with # of outing vehicle, (determine # of care go L/R/U/S)
 // note that, this is NOT the number of vehicles will be out after the current step
 // it depends on the saturation of neighboors, but sure will not be more than the outgoing capacity(depends on speed of vehicle)
-    
-    uchar2 tl_info = d_tl[uni_id];           	                 // traffic light information
     if( tl_hor ){                                                // horizontal light
         io[idy][idx].x = 0.f;                                    // go north
         io[idy][idx].y = fminf(VEHICLE_PER_STEP, cnt_temp.y);    // go east        
@@ -217,101 +216,110 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
 
 /// 2nd step, process incoming vehicles, it will update outgoing requests of neighboors. 
     float4 diff_cap, diff_bk;                     // the capacity of incoming vehicles 
-    diff_cap.x =  = cap[uni_id]/4.f - cnt_temp.x; 
-    diff_cap.y =  = cap[uni_id]/4.f - cnt_temp.y; 
-    diff_cap.z =  = cap[uni_id]/4.f - cnt_temp.z; 
-    diff_cap.w =  = cap[uni_id]/4.f - cnt_temp.w; 
+    diff_cap.x = cap[uni_id]/4.f - cnt_temp.x; 
+    diff_cap.y = cap[uni_id]/4.f - cnt_temp.y; 
+    diff_cap.z = cap[uni_id]/4.f - cnt_temp.z; 
+    diff_cap.w = cap[uni_id]/4.f - cnt_temp.w; 
     diff_bk = diff_cap;                                  // save the capacity for computing how many vehicles entered at the end
     // priority ? random
     // returns a random number between 0.0 and 1.0 following a uniform distribution.
     
     float4 pturn_c = pturn[uni_id];          // turn probabilities of the cell [i, j]
     int rnd = (unsigned char)( curand_uniform(&states[uni_id])*24 ); 
+    float4 in_distr;
+    bool md_flg;
     for (int i=0; i<4 && (diff_cap.x > EPS || diff_cap.y > EPS); i++)
     {
         switch(order[rnd][i])
         {
             case 0:	                             // enter from top 
                 if(io[idy-1][idx].z > 0){           
-                    float4 in_distr = pturn_c * io[idy-1][idx].z;  // incoming distribution
+                    in_distr = pturn_c * io[idy-1][idx].z;  // incoming distribution
+                    md_flg = true;
                 }else{
+                    md_flg = false;
                     break;
                 }                                                                          
-                io[idy-1][idx].z = in_distr.x + in_distr.y + in_distr.z + in_distr.w;
                 break;
             case 1:                              // enter from left
                 if(io[idy][idx-1].y > 0){           
-                    float4 in_distr = pturn_c * io[idy][idx-1].y;  // incoming distribution
+                    in_distr = pturn_c * io[idy][idx-1].y;  // incoming distribution
+                    md_flg = true;
                 }else{
+                    md_flg = false;
                     break;
                 }                                                                                          
-                io[idy][idx-1].y = in_distr.x + in_distr.y + in_distr.z + in_distr.w;
                 break;
             case 2:                              // enter from bottom
                 if(io[idy+1][idx].x > 0){           
-                    float4 in_distr = pturn_c * io[idy+1][idx].x;  // incoming distribution
+                    in_distr = pturn_c * io[idy+1][idx].x;  // incoming distribution
+                    md_flg = true;
                 }else{
+                    md_flg = false;
                     break;
                 }                                                                                        
-                io[idy+1][idx].x = in_distr.x + in_distr.y + in_distr.z + in_distr.w;
                 break;
             case 3:                              // enter from right
                 if(io[idy][idx+1].w > 0){           
-                    float4 in_distr = pturn_c * io[idy][idx+1].w;  // incoming distribution
+                    in_distr = pturn_c * io[idy][idx+1].w;  // incoming distribution
+                    md_flg = true;
                 }else{
+                    md_flg = false;
                     break;
-                }                                                                                        
-                io[idy][idx+1].w = in_distr.x + in_distr.y + in_distr.z + in_distr.w;            
+                }                                                                                                
                 break;                                                            
         }
-        // to north
-        if(diff_cap.x > in_distr.x){
-            diff_cap.x -= in_distr.x;
-            in_distr.x = 0.f;
-        }else{
-            in_distr.x -= diff_cap.x;
-            diff_cap.x = 0.f;
-        }     
-        // to east       
-        if(diff_cap.y > in_distr.y){
-            diff_cap.y -= in_distr.y;
-            in_distr.y = 0.f;
-        }else{
-            in_distr.y -= diff_cap.y;
-            diff_cap.y = 0.f;
-        }  
-        // to south
-        if(diff_cap.z > in_distr.z){
-            diff_cap.z -= in_distr.z;
-            in_distr.z = 0.f;
-        }else{
-            in_distr.z -= diff_cap.z;
-            diff_cap.z = 0.f;
-        }  
-        // to west
-        if(diff_cap.w > in_distr.w){
-            diff_cap.w -= in_distr.w;
-            in_distr.w = 0.f;
-        }else{
-            in_distr.w -= diff_cap.w;
-            diff_cap.w = 0.f;
-        }  
-        // write back these who did not get received due to saturation
-        switch(order[rnd][i])
-        {
-            case 0:	                             // enter from top                                                                       
-                io[idy-1][idx].z = in_distr.x + in_distr.y + in_distr.z + in_distr.w;
-                break;
-            case 1:                              // enter from left                                                                                        
-                io[idy][idx-1].y = in_distr.x + in_distr.y + in_distr.z + in_distr.w;
-                break;
-            case 2:                              // enter from bottom                                                                                    
-                io[idy+1][idx].x = in_distr.x + in_distr.y + in_distr.z + in_distr.w;
-                break;
-            case 3:                              // enter from right                                                                                     
-                io[idy][idx+1].w = in_distr.x + in_distr.y + in_distr.z + in_distr.w;            
-                break;                                                            
-        }                      
+        if(md_flg){
+            // to north
+            if(diff_cap.x > in_distr.x){
+                diff_cap.x -= in_distr.x;
+                in_distr.x = 0.f;
+            }else{
+                in_distr.x -= diff_cap.x;
+                diff_cap.x = 0.f;
+            }     
+            // to east       
+            if(diff_cap.y > in_distr.y){
+                diff_cap.y -= in_distr.y;
+                in_distr.y = 0.f;
+            }else{
+                in_distr.y -= diff_cap.y;
+                diff_cap.y = 0.f;
+            }  
+            // to south
+            if(diff_cap.z > in_distr.z){
+                diff_cap.z -= in_distr.z;
+                in_distr.z = 0.f;
+            }else{
+                in_distr.z -= diff_cap.z;
+                diff_cap.z = 0.f;
+            }  
+            // to west
+            if(diff_cap.w > in_distr.w){
+                diff_cap.w -= in_distr.w;
+                in_distr.w = 0.f;
+            }else{
+                in_distr.w -= diff_cap.w;
+                diff_cap.w = 0.f;
+            }  
+        
+            // write back these who did not get received due to saturation
+            switch(order[rnd][i])
+            {
+                case 0:	                             // enter from top                                                                       
+                    io[idy-1][idx].z = in_distr.x + in_distr.y + in_distr.z + in_distr.w;
+                    break;
+                case 1:                              // enter from left                                                                                        
+                    io[idy][idx-1].y = in_distr.x + in_distr.y + in_distr.z + in_distr.w;
+                    break;
+                case 2:                              // enter from bottom                                                                                    
+                    io[idy+1][idx].x = in_distr.x + in_distr.y + in_distr.z + in_distr.w;
+                    break;
+                case 3:                              // enter from right                                                                                     
+                    io[idy][idx+1].w = in_distr.x + in_distr.y + in_distr.z + in_distr.w;            
+                    break;                                                            
+            }   
+        }                   
     } 
     __syncthreads();
 // add saturated vehicle back to counter, pre_cnt - (want_go - saturated) + incoming(in_cap - in_cap_left)
@@ -355,7 +363,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
 * note:   cuda vec 4 type: x->north; y->east; z->south; w->west; 
 ***********************************************************************************************************
 */
-__global__ void evacuation_halo_sync(float *cnt, int Ngx, int Ngy, float * d_halo_sync) 
+__global__ void evacuation_halo_sync(float4 *cnt, int Ngx, int Ngy, float * d_halo_sync) 
 {
     int g_idx = blockIdx.x*blockDim.x + threadIdx.x;
     int g_idy = blockIdx.y*blockDim.y + threadIdx.y;
@@ -368,24 +376,24 @@ __global__ void evacuation_halo_sync(float *cnt, int Ngx, int Ngy, float * d_hal
     if(threadIdx.x == 0 && blockIdx.x > 0){                                  // left
         int id_helper = (blockIdx.y*gridDim.x + blockIdx.x - 1) * (4 * CUDA_BLOCK_SIZE);
         id_helper += 1*CUDA_BLOCK_SIZE + threadIdx.y;
-        cnt[uni_id].x -= d_halo_sync[id_helper];  
+        cnt[uni_id].w -= d_halo_sync[id_helper];  
     }      
     if(threadIdx.x == CUDA_BLOCK_SIZE-1 && blockIdx.x < gridDim.x-1){        // right
         int id_helper = (blockIdx.y*gridDim.x + blockIdx.x + 1) * (4 * CUDA_BLOCK_SIZE);
         id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
-        cnt[uni_id].x -= d_halo_sync[id_helper]; 
+        cnt[uni_id].y -= d_halo_sync[id_helper]; 
     }
 
     if(threadIdx.y == 0 && blockIdx.y > 0){                                  // top
         int id_helper = ( (blockIdx.y-1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
         id_helper += 2*CUDA_BLOCK_SIZE + threadIdx.x;
-        cnt[uni_id].y -= d_halo_sync[id_helper]; 
+        cnt[uni_id].x -= d_halo_sync[id_helper]; 
     }
 
     if(threadIdx.y == CUDA_BLOCK_SIZE-1 && blockIdx.y < gridDim.y-1){        // bottom
         int id_helper = ( (blockIdx.y+1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
         id_helper += threadIdx.x;
-        cnt[uni_id].y -= d_halo_sync[id_helper]; 
+        cnt[uni_id].z -= d_halo_sync[id_helper]; 
     }
 }
 /*
@@ -455,7 +463,7 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
 * return: none
 ***********************************************************************************************************
 */
-void evacuation_state_init(float2 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, int Ngy)
+void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, int Ngy)
 {
     for(int r = 1; r < Ngy-1; r++){
         for(int c = 1; c < Ngx-1; c++){
@@ -572,16 +580,16 @@ int main()
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                                  // order: north -> east -> south -> west
     cudaError_t cuda_error;
-    float *h_vcnt    = new float4[Ngx*Ngy]();         // host memory for vehicle counter
+    float4 *h_vcnt    = new float4[Ngx*Ngy]();         // host memory for vehicle counter
     float *h_vcap    = new float[Ngx*Ngy]();          // host memory for vehicle capacity in each of the cells
     float4 *h_turn   = new float4[Ngx*Ngy]();         // host memory for turn probabilities
     uchar2 *h_tlinfo = new uchar2[Ngx*Ngy]();         // host memory for traffic light time offset, and pulse wideth for horizontal
     evacuation_field_init(h_turn, Ngx, Ngy);	      // initialize turn probabilities (the field) 
     evacuation_state_init(h_vcnt, h_vcap, h_tlinfo, Ngx, Ngy);  // initialize vehicle counters and cell capacity
     
-    // device memory for counter (as input), counter (as output), capacity, temporary for swaping
-    float *d_vcnt_in, *d_vcnt_out, *d_vcap, *p_swap;
-    float4 *d_turn;	                             	  // device memory for turn probabilities 
+    // device memory for counter (as input), counter (as output), turn probabilities, temporary for swaping
+    float4 *d_vcnt_in, *d_vcnt_out, *d_turn, *p_swap;
+    float  *d_vcap;
     uchar2 *d_tlinfo;
     dim3 dimBlock(CUDA_BLOCK_SIZE, CUDA_BLOCK_SIZE, 1);
     dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
