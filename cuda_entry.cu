@@ -523,7 +523,7 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
 * return: none
 ***********************************************************************************************************
 */
-void write_vehicle_cnt_info(int time_step, float * p_vcnt, int Ngx, int Ngy)
+void write_vehicle_cnt_info(int time_step, float4 * p_vcnt, int Ngx, int Ngy)
 {
     ofstream output_file;
     char filename[100];
@@ -540,8 +540,8 @@ void write_vehicle_cnt_info(int time_step, float * p_vcnt, int Ngx, int Ngy)
 }
 /*
 ***********************************************************************************************************
-* func   name: write_vehicle_cnt_info
-* description: write results to file for visualizing
+* func   name: write_halo_sync
+* description: write halo sync to file for debug
 * parameters :
 *             none
 * return: none
@@ -580,7 +580,7 @@ int main()
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                                  // order: north -> east -> south -> west
     cudaError_t cuda_error;
-    float4 *h_vcnt    = new float4[Ngx*Ngy]();         // host memory for vehicle counter
+    float4 *h_vcnt   = new float4[Ngx*Ngy]();         // host memory for vehicle counter
     float *h_vcap    = new float[Ngx*Ngy]();          // host memory for vehicle capacity in each of the cells
     float4 *h_turn   = new float4[Ngx*Ngy]();         // host memory for turn probabilities
     uchar2 *h_tlinfo = new uchar2[Ngx*Ngy]();         // host memory for traffic light time offset, and pulse wideth for horizontal
