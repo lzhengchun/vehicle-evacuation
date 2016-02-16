@@ -108,7 +108,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     __shared__ float4 io_bk[CUDA_BLOCK_SIZE+2][CUDA_BLOCK_SIZE+2];
     __shared__ float halo_sync[4][CUDA_BLOCK_SIZE];  // order: N -> E -> S -> W
     // use the flag to ignore outmost layer
-    // bool update_flag = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
+    bool upd_f = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
     bool exit_flag   = g_idx > 80 && g_idx <= Ngx-1 && g_idy == Ngy-1;
     exit_flag = exit_flag || (g_idx == Ngx-1 && g_idy >= 50 && g_idy <= 70);
     
@@ -136,78 +136,94 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
 
     // extra work for edge threads, for the halo, only one direction needs determine
     if(threadIdx.x == 0){                            	        // left halo
-        tl_info = d_tl[uni_id-1];                               // traffic light
-        float4 v_cnt = p_vcnt_in[uni_id-1];
-        if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
-            io[idy][0].x = 0.f;                                      // go north
-            io[idy][0].y = fminf(VEHICLE_PER_STEP, v_cnt.y);         // go east        
-            io[idy][0].z = 0.f;                                      // go south
-            io[idy][0].w = fminf(VEHICLE_PER_STEP, v_cnt.w);         // go west    
-            
-        }else{	                                                     // vertical light 
-            io[idy][0].x = fminf(VEHICLE_PER_STEP, v_cnt.x);         // go north
-            io[idy][0].y = 0.f;                                      // go east       
-            io[idy][0].z = fminf(VEHICLE_PER_STEP, v_cnt.z);         // go south
-            io[idy][0].w = 0.f;                                      // go west        
+        if(upd_f){
+            tl_info = d_tl[uni_id-1];                               // traffic light
+            float4 v_cnt = p_vcnt_in[uni_id-1];
+            if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
+                io[idy][0].x = 0.f;                                      // go north
+                io[idy][0].y = fminf(VEHICLE_PER_STEP, v_cnt.y);         // go east        
+                io[idy][0].z = 0.f;                                      // go south
+                io[idy][0].w = fminf(VEHICLE_PER_STEP, v_cnt.w);         // go west    
+                
+            }else{	                                                     // vertical light 
+                io[idy][0].x = fminf(VEHICLE_PER_STEP, v_cnt.x);         // go north
+                io[idy][0].y = 0.f;                                      // go east       
+                io[idy][0].z = fminf(VEHICLE_PER_STEP, v_cnt.z);         // go south
+                io[idy][0].w = 0.f;                                      // go west        
+            }
+            io_bk[idy][0] = io[idy][0];  
+        }else{
+            io[idy][0] = make_float4(0.f, 0.f, 0.f, 0.f);
         }
-        io_bk[idy][0] = io[idy][0];  
         halo_sync[3][idy] = io[idy][0].y;        	                 // will be used to computing how many vehicles get accepted by west cell
     }
 
     if(threadIdx.x == CUDA_BLOCK_SIZE-1){                       // right halo
-        tl_info = d_tl[uni_id+1];                               // traffic light
-        float4 v_cnt = p_vcnt_in[uni_id+1];
-        if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
-            io[idy][CUDA_BLOCK_SIZE+1].x = 0.f;                                    // go north
-            io[idy][CUDA_BLOCK_SIZE+1].y = fminf(VEHICLE_PER_STEP, v_cnt.y);       // go east        
-            io[idy][CUDA_BLOCK_SIZE+1].z = 0.f;                                    // go south
-            io[idy][CUDA_BLOCK_SIZE+1].w = fminf(VEHICLE_PER_STEP, v_cnt.w);       // go west    
-            
-        }else{	                                                     // vertical light 
-            io[idy][CUDA_BLOCK_SIZE+1].x = fminf(VEHICLE_PER_STEP, v_cnt.x);       // go north
-            io[idy][CUDA_BLOCK_SIZE+1].y = 0.f;                                    // go east       
-            io[idy][CUDA_BLOCK_SIZE+1].z = fminf(VEHICLE_PER_STEP, v_cnt.z);       // go south
-            io[idy][CUDA_BLOCK_SIZE+1].w = 0.f;                                    // go west        
+        if(upd_f){
+            tl_info = d_tl[uni_id+1];                               // traffic light
+            float4 v_cnt = p_vcnt_in[uni_id+1];
+            if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
+                io[idy][CUDA_BLOCK_SIZE+1].x = 0.f;                                    // go north
+                io[idy][CUDA_BLOCK_SIZE+1].y = fminf(VEHICLE_PER_STEP, v_cnt.y);       // go east        
+                io[idy][CUDA_BLOCK_SIZE+1].z = 0.f;                                    // go south
+                io[idy][CUDA_BLOCK_SIZE+1].w = fminf(VEHICLE_PER_STEP, v_cnt.w);       // go west    
+                
+            }else{	                                                     // vertical light 
+                io[idy][CUDA_BLOCK_SIZE+1].x = fminf(VEHICLE_PER_STEP, v_cnt.x);       // go north
+                io[idy][CUDA_BLOCK_SIZE+1].y = 0.f;                                    // go east       
+                io[idy][CUDA_BLOCK_SIZE+1].z = fminf(VEHICLE_PER_STEP, v_cnt.z);       // go south
+                io[idy][CUDA_BLOCK_SIZE+1].w = 0.f;                                    // go west        
+            }
+            io_bk[idy][CUDA_BLOCK_SIZE+1] = io[idy][CUDA_BLOCK_SIZE+1];  
+        }else{
+            io[idy][CUDA_BLOCK_SIZE+1] = make_float4(0.f, 0.f, 0.f, 0.f);
         }
-        io_bk[idy][CUDA_BLOCK_SIZE+1] = io[idy][CUDA_BLOCK_SIZE+1];  
         halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].z;        	           // will be used to computing how many vehicles get accepted by west cell
     }
 
     if(threadIdx.y == 0){                                       // top halo
-        tl_info = d_tl[uni_id-Ngx];                             // traffic light
-        float4 v_cnt = p_vcnt_in[uni_id-Ngx];
-        if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
-            io[0][idx].x = 0.f;                                    // go north
-            io[0][idx].y = fminf(VEHICLE_PER_STEP, v_cnt.y);       // go east        
-            io[0][idx].z = 0.f;                                    // go south
-            io[0][idx].w = fminf(VEHICLE_PER_STEP, v_cnt.w);       // go west    
-            
-        }else{	                                                   // vertical light 
-            io[0][idx].x = fminf(VEHICLE_PER_STEP, v_cnt.x);       // go north
-            io[0][idx].y = 0.f;                                    // go east       
-            io[0][idx].z = fminf(VEHICLE_PER_STEP, v_cnt.z);       // go south
-            io[0][idx].w = 0.f;                                    // go west        
+        if(upd_f){
+            tl_info = d_tl[uni_id-Ngx];                             // traffic light
+            float4 v_cnt = p_vcnt_in[uni_id-Ngx];
+            if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
+                io[0][idx].x = 0.f;                                    // go north
+                io[0][idx].y = fminf(VEHICLE_PER_STEP, v_cnt.y);       // go east        
+                io[0][idx].z = 0.f;                                    // go south
+                io[0][idx].w = fminf(VEHICLE_PER_STEP, v_cnt.w);       // go west    
+                
+            }else{	                                                   // vertical light 
+                io[0][idx].x = fminf(VEHICLE_PER_STEP, v_cnt.x);       // go north
+                io[0][idx].y = 0.f;                                    // go east       
+                io[0][idx].z = fminf(VEHICLE_PER_STEP, v_cnt.z);       // go south
+                io[0][idx].w = 0.f;                                    // go west        
+            }
+            io_bk[0][idx] = io[0][idx]; 
+        }else{
+        	   io[0][idx] = make_float4(0.f, 0.f, 0.f, 0.f);     
         }
-        io_bk[0][idx] = io[0][idx]; 
-        halo_sync[0][idx] = io[0][idx].z;        	             // will be used to computing how many vehicles get accepted by west cell
+        halo_sync[0][idx] = io[0][idx].z;        	                   // will be used to computing how many vehicles get accepted by west cell
     }
             
     if(threadIdx.y == CUDA_BLOCK_SIZE-1){                                       // bottom halo
-        tl_info = d_tl[uni_id+Ngx];                               // traffic light
-        float4 v_cnt = p_vcnt_in[uni_id+Ngx];
-        if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
-            io[CUDA_BLOCK_SIZE+1][idx].x = 0.f;                                    // go north
-            io[CUDA_BLOCK_SIZE+1][idx].y = fminf(VEHICLE_PER_STEP, v_cnt.y);       // go east        
-            io[CUDA_BLOCK_SIZE+1][idx].z = 0.f;                                    // go south
-            io[CUDA_BLOCK_SIZE+1][idx].w = fminf(VEHICLE_PER_STEP, v_cnt.w);       // go west    
-            
-        }else{	                                                   // vertical light 
-            io[CUDA_BLOCK_SIZE+1][idx].x = fminf(VEHICLE_PER_STEP, v_cnt.x);       // go north
-            io[CUDA_BLOCK_SIZE+1][idx].y = 0.f;                                    // go east       
-            io[CUDA_BLOCK_SIZE+1][idx].z = fminf(VEHICLE_PER_STEP, v_cnt.z);       // go south
-            io[CUDA_BLOCK_SIZE+1][idx].w = 0.f;                                    // go west        
+        if(upd_f){
+            tl_info = d_tl[uni_id+Ngx];                               // traffic light
+            float4 v_cnt = p_vcnt_in[uni_id+Ngx];
+            if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
+                io[CUDA_BLOCK_SIZE+1][idx].x = 0.f;                                    // go north
+                io[CUDA_BLOCK_SIZE+1][idx].y = fminf(VEHICLE_PER_STEP, v_cnt.y);       // go east        
+                io[CUDA_BLOCK_SIZE+1][idx].z = 0.f;                                    // go south
+                io[CUDA_BLOCK_SIZE+1][idx].w = fminf(VEHICLE_PER_STEP, v_cnt.w);       // go west    
+                
+            }else{	                                                   // vertical light 
+                io[CUDA_BLOCK_SIZE+1][idx].x = fminf(VEHICLE_PER_STEP, v_cnt.x);       // go north
+                io[CUDA_BLOCK_SIZE+1][idx].y = 0.f;                                    // go east       
+                io[CUDA_BLOCK_SIZE+1][idx].z = fminf(VEHICLE_PER_STEP, v_cnt.z);       // go south
+                io[CUDA_BLOCK_SIZE+1][idx].w = 0.f;                                    // go west        
+            }
+            io_bk[CUDA_BLOCK_SIZE+1][idx] = io[CUDA_BLOCK_SIZE+1][idx]; 
+        else{
+             io[CUDA_BLOCK_SIZE+1][idx] = make_float4(0.f, 0.f, 0.f, 0.f); 
         }
-        io_bk[CUDA_BLOCK_SIZE+1][idx] = io[CUDA_BLOCK_SIZE+1][idx]; 
         halo_sync[2][idx] = io[CUDA_BLOCK_SIZE+1][idx].x;      	                  // will be used to computing how many vehicles get accepted by west cell
     }
       
