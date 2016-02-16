@@ -73,8 +73,8 @@ __global__ void curand_init_all(unsigned int seed, curandState_t* states, int Ng
                one cell, map was divided to cell as an intersection model (corresponding turn probabilities 
                were set as zero if the cell is not a real intersection in reality).
 * parameters :
-*             p_vcnt_in   : device pointer to vehicle counter as input
-*             p_vcnt_out  : device pointer to vehicle counter as output
+*             p_vcnt_in   : device pointer to vehicle counter as input, .x -> horizontal, .y -> vertical
+*             p_vcnt_out  : device pointer to vehicle counter as output, .x -> horizontal, .y -> vertical
 *             cap         : device pointer to cell capacity
 *             pturn       : device pointer to turn probabilities
 *             d_tl        : device pointer to traffic light information
@@ -87,7 +87,7 @@ __global__ void curand_init_all(unsigned int seed, curandState_t* states, int Ng
 * note:   cuda vec 4 type: x->north; y->east; z->south; w->west; 
 ***********************************************************************************************************
 */
-__global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *cap, float4 *pturn, 
+__global__ void evacuation_update(float2 *p_vcnt_in, float2 *p_vcnt_out, float *cap, float4 *pturn, 
                                   uchar2 *d_tl, int Ngx, int Ngy, float * d_halo_sync, int time_step, 
                                   curandState_t* states) 
 {
@@ -106,16 +106,18 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     bool exit_flag   = g_idx > 80 && g_idx <= Ngx-1 && g_idy == Ngy-1;
     exit_flag = exit_flag || (g_idx == Ngx-1 && g_idy >= 50 && g_idy <= 70);
     
-    float cnt_temp = p_vcnt_in[uni_id];
+    uchar2 tl_info = d_tl[uni_id];           // traffic light information
+    bool tl_hor = (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y; // current traffic light
+   
+    float2 cnt_temp = p_vcnt_in[uni_id];
     int idx = threadIdx.x + 1, idy = threadIdx.y + 1;
-// 1st step, fill in current [r, c] with # of outing vehicle, (determine # of care go L/R/U/S)
+/// 1st step, fill in current [r, c] with # of outing vehicle, (determine # of care go L/R/U/S)
 // note that, this is NOT the number of vehicles will be out after the current step
 // it depends on the saturation of neighboors, but sure will not be more than the outgoing capacity(depends on speed of vehicle)
-    float cnt_out = fminf(VEHICLE_PER_STEP, cnt_temp);
-    float cnt_out_bk;
+    float cnt_out, cnt_out_bk;
     float4 pturn_c = pturn[uni_id];          // turn probabilities of the cell [i, j]
-    uchar2 tl_info = d_tl[uni_id];           // traffic light information
-    if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){
+    if( tl_hor ){
+        cnt_out = fminf(VEHICLE_PER_STEP, cnt_temp.x);
         io[idy][idx].x = 0.f;                    // go north
         io[idy][idx].y = cnt_out * pturn_c.y;    // go east        
         io[idy][idx].z = 0.f;                    // go south
@@ -123,6 +125,7 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
         cnt_out_bk = cnt_out*(pturn_c.y + pturn_c.w);    
     }
     else{
+        cnt_out = fminf(VEHICLE_PER_STEP, cnt_temp.y);
         io[idy][idx].x = cnt_out * pturn_c.x;    // go north
         io[idy][idx].y = 0.f;                    // go east       
         io[idy][idx].z = cnt_out * pturn_c.z;    // go south
@@ -133,9 +136,9 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     // aussume that the ourmost layer never have car back, i.e., they are exit
     if(threadIdx.x == 0){                            // left halo
         tl_info = d_tl[uni_id-1];                    // traffic light
-        if(update_flag && ((time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y) ){
+        if(update_flag && tl_hor ){
             pturn_c = pturn[uni_id-1];
-            cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id-1]);
+            cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id-1].x);
             io[idy][0].y = cnt_out * pturn_c.y;      // go east
             halo_sync[3][idy] = io[idy][0].y;        // will be used to computing how many vehicles get accepted by west cell
         }else{
@@ -146,9 +149,9 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     
     if(threadIdx.x == CUDA_BLOCK_SIZE-1){            // right halo
         tl_info = d_tl[uni_id+1];                    // traffic light
-        if(update_flag && ((time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y)){
+        if(update_flag && tl_hor){
             pturn_c = pturn[uni_id+1];
-            cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id+1]);
+            cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id+1].x);
             io[idy][CUDA_BLOCK_SIZE+1].w = cnt_out * pturn_c.w;    // go west   
             halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].w;
         }else{
@@ -159,9 +162,9 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
 
     if(threadIdx.y == 0){	                         // top halo 
         tl_info = d_tl[uni_id-Ngx];                  // traffic light
-        if(update_flag && !((time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y)){
+        if(update_flag && !tl_hor){
             pturn_c = pturn[uni_id-Ngx];
-            cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id-Ngx]);
+            cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id-Ngx].y);
             io[0][idx].z = cnt_out * pturn_c.z;      // go south       
             halo_sync[0][idx] = io[0][idx].z;
         }else{
@@ -171,9 +174,9 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     }    
     if(threadIdx.y == CUDA_BLOCK_SIZE-1){            // bottom halo
         tl_info = d_tl[uni_id+Ngx];                  // traffic light
-        if(update_flag && !((time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y)){
+        if(update_flag && !tl_hor){
             pturn_c = pturn[uni_id+Ngx];
-            cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id+Ngx]);        
+            cnt_out = fminf(VEHICLE_PER_STEP, p_vcnt_in[uni_id+Ngx].y);        
             io[CUDA_BLOCK_SIZE+1][idx].x = cnt_out * pturn_c.x;    // go north
             halo_sync[2][idx] = io[CUDA_BLOCK_SIZE+1][idx].x;      
         }else{
@@ -184,10 +187,10 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     // then wait untill all the threads in the same thread block finish their outgoing computing processing
     __syncthreads();  
 
-// 2nd step, process incoming vehicles, it will update outgoing requests of neighboors. 
+/// 2nd step, process incoming vehicles, it will update outgoing requests of neighboors. 
     float diff_cap = cap[uni_id] - cnt_temp;                   // the capacity of incoming vehicles 
     float diff_bk = diff_cap;                                  // save the capacity for computing how many vehicles entered at the end
-    /// priority ? random
+    // priority ? random
     // returns a random number between 0.0 and 1.0 following a uniform distribution.
     int rnd = (unsigned char)( curand_uniform(&states[uni_id])*24 ); 
     for (int i=0; i<4 && diff_cap > EPS; i++)
@@ -240,11 +243,16 @@ __global__ void evacuation_update(float *p_vcnt_in, float *p_vcnt_out, float *ca
     __syncthreads();
 // add saturated vehicle back to counter, pre_cnt - (want_go - saturated) + incoming(in_cap - in_cap_left)
     if(!exit_flag){
-        p_vcnt_out[uni_id] = cnt_temp - (cnt_out_bk - io[idy][idx].x - io[idy][idx].y - io[idy][idx].z - io[idy][idx].w) 
-                    + (diff_bk - diff_cap);
+        if(tl_hor){
+            p_vcnt_out[uni_id].x = cnt_temp - (cnt_out_bk - io[idy][idx].x - io[idy][idx].y - io[idy][idx].z - io[idy][idx].w) 
+                        + (diff_bk - diff_cap);
+        }else{
+            p_vcnt_out[uni_id].y = cnt_temp - (cnt_out_bk - io[idy][idx].x - io[idy][idx].y - io[idy][idx].z - io[idy][idx].w) 
+                        + (diff_bk - diff_cap);            
+        }
         __syncthreads();
     }
-// 3rd step, process halo synchronization!!!! synchronizing via device global memory    
+/// 3rd step, process halo synchronization!!!! synchronizing via device global memory    
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
     int id_helper_st = blk_uid * (4 * CUDA_BLOCK_SIZE);                 // start address in current block
@@ -286,28 +294,28 @@ __global__ void evacuation_halo_sync(float *cnt, int Ngx, int Ngy, float * d_hal
     {
         return;
     }    
-
+    
     if(threadIdx.x == 0 && blockIdx.x > 0){                                  // left
         int id_helper = (blockIdx.y*gridDim.x + blockIdx.x - 1) * (4 * CUDA_BLOCK_SIZE);
         id_helper += 1*CUDA_BLOCK_SIZE + threadIdx.y;
-        cnt[uni_id] -= d_halo_sync[id_helper];  
+        cnt[uni_id].x -= d_halo_sync[id_helper];  
     }      
     if(threadIdx.x == CUDA_BLOCK_SIZE-1 && blockIdx.x < gridDim.x-1){        // right
         int id_helper = (blockIdx.y*gridDim.x + blockIdx.x + 1) * (4 * CUDA_BLOCK_SIZE);
         id_helper += 3*CUDA_BLOCK_SIZE + threadIdx.y;
-        cnt[uni_id] -= d_halo_sync[id_helper]; 
+        cnt[uni_id].x -= d_halo_sync[id_helper]; 
     }
 
     if(threadIdx.y == 0 && blockIdx.y > 0){                                  // top
         int id_helper = ( (blockIdx.y-1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
         id_helper += 2*CUDA_BLOCK_SIZE + threadIdx.x;
-        cnt[uni_id] -= d_halo_sync[id_helper]; 
+        cnt[uni_id].y -= d_halo_sync[id_helper]; 
     }
 
     if(threadIdx.y == CUDA_BLOCK_SIZE-1 && blockIdx.y < gridDim.y-1){        // bottom
         int id_helper = ( (blockIdx.y+1)*gridDim.x + blockIdx.x) * (4 * CUDA_BLOCK_SIZE);
         id_helper += threadIdx.x;
-        cnt[uni_id] -= d_halo_sync[id_helper]; 
+        cnt[uni_id].y -= d_halo_sync[id_helper]; 
     }
 }
 /*
@@ -377,13 +385,14 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
 * return: none
 ***********************************************************************************************************
 */
-void evacuation_state_init(float *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, int Ngy)
+void evacuation_state_init(float2 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, int Ngy)
 {
     for(int r = 1; r < Ngy-1; r++){
         for(int c = 1; c < Ngx-1; c++){
             int idx = r*Ngx+c;
             p_cap[idx] = MAX_CAP;
-            p_cnt[idx] = p_cap[idx] * rand() / RAND_MAX;
+            p_cnt[idx].x = p_cap[idx] * rand() / RAND_MAX / 2.f;
+            p_cnt[idx].y = p_cap[idx] * rand() / RAND_MAX / 2.f;
         }
     }
     // edge
@@ -391,23 +400,27 @@ void evacuation_state_init(float *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, in
     // first row
     for(int c = 0; c < Ngx; c++){
         p_cap[c] = MAX_CAP;
-        p_cnt[c] = 0;
+        p_cnt[c].x = 0;
+        p_cnt[c].y = 0;
     }
     // left and right
     for(int r = 0; r < Ngy; r++){
         idx = r * Ngx + 0;
         p_cap[idx] = MAX_CAP;
-        p_cnt[idx] = 0;
+        p_cnt[idx].x = 0;
+        p_cnt[idx].y = 0;
         
         idx = r * Ngx + Ngx-1;
         p_cap[idx] = MAX_CAP;
-        p_cnt[idx] = 0;        
+        p_cnt[idx].x = 0;
+        p_cnt[idx].y = 0;        
     }
     // bottom
     for(int c = 0; c < Ngx; c++){
         idx = (Ngy-1)*Ngx + c;
         p_cap[idx] = MAX_CAP;
-        p_cnt[idx] = 0;
+        p_cnt[idx].x = 0;
+        p_cnt[idx].y = 0;
     }    
     // traffic offset 
     
@@ -439,7 +452,7 @@ void write_vehicle_cnt_info(int time_step, float * p_vcnt, int Ngx, int Ngy)
     for(int r = 0; r < Ngy; r++){
         for(int c = 0; c < Ngx; c++){
             int idx = r*Ngx+c;
-            output_file << p_vcnt[idx] << ",";
+            output_file << p_vcnt[idx].x + p_vcnt[idx].y << ",";
         }
         output_file << endl;
     }    
@@ -487,7 +500,7 @@ int main()
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                                  // order: north -> east -> south -> west
     cudaError_t cuda_error;
-    float *h_vcnt    = new float[Ngx*Ngy]();          // host memory for vehicle counter
+    float *h_vcnt    = new float2[Ngx*Ngy]();         // host memory for vehicle counter
     float *h_vcap    = new float[Ngx*Ngy]();          // host memory for vehicle capacity in each of the cells
     float4 *h_turn   = new float4[Ngx*Ngy]();         // host memory for turn probabilities
     uchar2 *h_tlinfo = new uchar2[Ngx*Ngy]();         // host memory for traffic light time offset, and pulse wideth for horizontal
@@ -501,13 +514,13 @@ int main()
     dim3 dimBlock(CUDA_BLOCK_SIZE, CUDA_BLOCK_SIZE, 1);
     dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
     // allocate device memory for vehicle counters as input
-    cuda_error = cudaMalloc((void**)&d_vcnt_in, sizeof(float)*Ngx*Ngy);
+    cuda_error = cudaMalloc((void**)&d_vcnt_in, sizeof(float2)*Ngx*Ngy);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }    
     // allocate device memory for vehicle counters as output
-    cuda_error = cudaMalloc((void**)&d_vcnt_out, sizeof(float)*Ngx*Ngy);
+    cuda_error = cudaMalloc((void**)&d_vcnt_out, sizeof(float2)*Ngx*Ngy);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
@@ -548,12 +561,12 @@ int main()
         exit(-1);
     }    
     // copy counter initial values from host to device
-    cuda_error = cudaMemcpy((void *)d_vcnt_in, (void *)h_vcnt, sizeof(float)*Ngx*Ngy, cudaMemcpyHostToDevice);
+    cuda_error = cudaMemcpy((void *)d_vcnt_in, (void *)h_vcnt, sizeof(float2)*Ngx*Ngy, cudaMemcpyHostToDevice);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
     }  
-    cuda_error = cudaMemcpy((void *)d_vcnt_out, (void *)d_vcnt_in, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToDevice);
+    cuda_error = cudaMemcpy((void *)d_vcnt_out, (void *)d_vcnt_in, sizeof(float2)*Ngx*Ngy, cudaMemcpyDeviceToDevice);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
