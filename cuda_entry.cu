@@ -587,6 +587,7 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
 void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, int Ngy)
 {
     float aver_per_cell = INIT_CARS / (Ngx*Ngy);
+    srand(time(NULL));
     for(int r = 0; r < Ngy; r++){
         for(int c = 0; c < Ngx; c++){
             int idx = r*Ngx+c;
