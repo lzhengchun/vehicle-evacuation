@@ -22,5 +22,11 @@ with traffic light control
 
 ![alt text](samples/animation3.gif)
 
+#sample-4
+
+with traffic light control, and four counters for north, east, west and south separately.
+
+![alt text](samples/tl-4cnter.gif)
+
 #Note
 gif was created by https://giphy.com/create/gifmaker with png image plotted by http://matplotlib.org
