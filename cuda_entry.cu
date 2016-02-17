@@ -339,8 +339,8 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
         p_vcnt_out[uni_id].y = cnt_temp.y - (io_bk[idy][idx].y - io[idy][idx].y) + (diff_bk.y - diff_cap.y);
         p_vcnt_out[uni_id].z = cnt_temp.z - (io_bk[idy][idx].z - io[idy][idx].z) + (diff_bk.z - diff_cap.z);
         p_vcnt_out[uni_id].w = cnt_temp.w - (io_bk[idy][idx].w - io[idy][idx].w) + (diff_bk.w - diff_cap.w);
-        __syncthreads();
     }
+    __syncthreads();
 /// 3rd step, process halo synchronization!!!! synchronizing via device global memory    
 // to update, we have to know how much vehicle actully went out (get accepted by neighboor)
     int blk_uid = blockIdx.y*gridDim.x + blockIdx.x;
@@ -716,6 +716,13 @@ int main()
                 exit(-1);
             }  
             write_vehicle_cnt_info(i+1, h_vcnt, Ngx, Ngy);
+            // for debug
+            cuda_error = cudaMemcpy((void *)h_halo_sync, (void *)d_vcnt_out, 4*CUDA_BLOCK_SIZE*dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyDeviceToHost);
+            if (cuda_error != cudaSuccess){
+                cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
+                exit(-1);
+            }              
+            write_halo_sync(i+1, h_halo_sync, dimGrid.x * dimGrid.y);
         }
         p_swap = d_vcnt_in;
         d_vcnt_in = d_vcnt_out;
