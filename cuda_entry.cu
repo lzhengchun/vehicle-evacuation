@@ -486,7 +486,12 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
     for(int c = 0; c < Ngx; c++){
         int idx = (Ngy-1)*Ngx + c;
         p_turn[idx] = make_float4(.5, .4, .0, .1);
-    }    
+    }   
+    //
+    p_turn[0] = make_float4(.0, .5, .5, .0); 
+    p_turn[Ngx-1] = make_float4(.0, .0, .5, .5);
+    p_turn[(Ngy-1)] = make_float4(.5, .5, .0, .0);
+    p_turn[(Ngy-1)*(Ngx) + Ngx-1] = make_float4(.5, .0, .0, .5);  
 }
 /*
 ***********************************************************************************************************
@@ -516,6 +521,8 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
         p_cap[c] = MAX_CAP;
         p_cnt[c].x = 0;
         p_cnt[c].y = 0;
+        p_cnt[c].z = 0;
+        p_cnt[c].w = 0;       
     }
     // left and right
     for(int r = 0; r < Ngy; r++){
@@ -523,11 +530,15 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
         p_cap[idx] = MAX_CAP;
         p_cnt[idx].x = 0;
         p_cnt[idx].y = 0;
-        
+        p_cnt[idx].z = 0;
+        p_cnt[idx].w = 0;    
+                
         idx = r * Ngx + Ngx-1;
         p_cap[idx] = MAX_CAP;
         p_cnt[idx].x = 0;
-        p_cnt[idx].y = 0;        
+        p_cnt[idx].y = 0;   
+        p_cnt[idx].z = 0;
+        p_cnt[idx].w = 0;                 
     }
     // bottom
     for(int c = 0; c < Ngx; c++){
@@ -535,6 +546,8 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
         p_cap[idx] = MAX_CAP;
         p_cnt[idx].x = 0;
         p_cnt[idx].y = 0;
+        p_cnt[idx].z = 0;
+        p_cnt[idx].w = 0;            
     }    
     // traffic offset 
     
