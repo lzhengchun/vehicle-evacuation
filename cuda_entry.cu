@@ -347,7 +347,9 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     } 
     __syncthreads();
 // add saturated vehicle back to counter, pre_cnt - (want_go - saturated) + incoming(in_cap - in_cap_left)
-    if(!exit_flag){
+    if(exit_flag){
+        p_vcnt_out[uni_id] = make_float4(.0, .0, .0, .0);
+    }else{
         p_vcnt_out[uni_id].x = cnt_temp.x - (io_bk[idy][idx].x - io[idy][idx].x) + (diff_bk.x - diff_cap.x);
         p_vcnt_out[uni_id].y = cnt_temp.y - (io_bk[idy][idx].y - io[idy][idx].y) + (diff_bk.y - diff_cap.y);
         p_vcnt_out[uni_id].z = cnt_temp.z - (io_bk[idy][idx].z - io[idy][idx].z) + (diff_bk.z - diff_cap.z);
