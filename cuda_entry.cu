@@ -463,15 +463,29 @@ void evacuation_cuda_finalize()
 */
 void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
 {
-    for(int r = 0; r < Ngy; r++){
-        for(int c = 0; c < Ngx; c++){
+    for(int r = 1; r < Ngy-1; r++){
+        for(int c = 1; c < Ngx-1; c++){
             int idx = r*Ngx+c;
-            p_turn[idx].x = 0.1;
-            p_turn[idx].y = 0.4;
-            p_turn[idx].z = 0.4;
-            p_turn[idx].w = 0.1;
+            p_turn[idx] = make_float4(.1, .4, .4, .1);
         }
     }
+    // top
+    for(int c = 0; c < Ngx; c++){
+        p_turn[c] = make_float4(.0, .4, .5, .1);
+    }
+    // left and right
+    for(int r = 0; r < Ngy; r++){
+        idx = r * Ngx + 0;
+        p_turn[idx] = make_float4(.1, .5, .4, .0);
+        
+        idx = r * Ngx + Ngx-1;
+        p_turn[idx] = make_float4(.1, .0, .4, .5);     
+    }
+    // bottom
+    for(int c = 0; c < Ngx; c++){
+        idx = (Ngy-1)*Ngx + c;
+        p_turn[idx] = make_float4(.5, .4, .0, .1);
+    }    
 }
 /*
 ***********************************************************************************************************
