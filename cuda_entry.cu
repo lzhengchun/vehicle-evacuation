@@ -356,20 +356,32 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     if(threadIdx.x == 0){                                // left
         int id_helper = id_helper_st + 3*CUDA_BLOCK_SIZE + threadIdx.y;
         d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
+        if(d_halo_sync[id_helper] > VEHICLE_PER_STEP){
+            cuPrintf ("Thread number %d. f = %d\n", threadIdx.x, f);
+        }
     }      
     if(threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
         int id_helper = id_helper_st + CUDA_BLOCK_SIZE + threadIdx.y;
         d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;
+        if(d_halo_sync[id_helper] > VEHICLE_PER_STEP){
+            cuPrintf ("Thread number %d. f = %d\n", threadIdx.x, f);
+        }        
     }
 
     if(threadIdx.y == 0){                                // top
         int id_helper = id_helper_st + threadIdx.x;
         d_halo_sync[id_helper] = halo_sync[0][idx] - io[0][idx].z;
+        if(d_halo_sync[id_helper] > VEHICLE_PER_STEP){
+            cuPrintf ("Thread number %d. f = %d\n", threadIdx.x, f);
+        }        
     }
 
     if(threadIdx.y == CUDA_BLOCK_SIZE-1){                // bottom
         int id_helper = id_helper_st + 2*CUDA_BLOCK_SIZE + threadIdx.x;
         d_halo_sync[id_helper] = halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x;
+        if(d_halo_sync[id_helper] > VEHICLE_PER_STEP){
+            cuPrintf ("Thread number %d. f = %d\n", threadIdx.x, f);
+        }        
     }     
 }
 /*
