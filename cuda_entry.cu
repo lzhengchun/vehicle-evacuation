@@ -22,7 +22,7 @@
 #define EPS                1e-5
 #define ENV_DIM_X          300
 #define ENV_DIM_Y          300
-#define INIT_CARS          50000.f
+#define INIT_CARS          70000.f
 #define N_ITER             30400
 #define MAX_CAP            4.f
 #define TL_PERIOD          5                          // traffic light period, # of steps, must be integer
