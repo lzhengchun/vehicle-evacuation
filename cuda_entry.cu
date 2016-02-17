@@ -21,7 +21,7 @@
 #define EPS                1e-5
 #define ENV_DIM_X          100
 #define ENV_DIM_Y          100
-#define N_ITER             1000
+#define N_ITER             2000
 #define MAX_CAP            10.f
 #define TL_PERIOD          5                          // traffic light period, # of steps, must be integer
 using namespace std;
@@ -718,19 +718,21 @@ int main()
             exit(-1);
         } 
         if((i+1)%100 == 0) {
-            cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_out, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost);
+            cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_out, sizeof(float4)*Ngx*Ngy, cudaMemcpyDeviceToHost);
             if (cuda_error != cudaSuccess){
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
                 exit(-1);
             }  
             write_vehicle_cnt_info(i+1, h_vcnt, Ngx, Ngy);
             // for debug
+            /*
             cuda_error = cudaMemcpy((void *)h_halo_sync, (void *)d_vcnt_out, 4*CUDA_BLOCK_SIZE*dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyDeviceToHost);
             if (cuda_error != cudaSuccess){
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
                 exit(-1);
             }              
             write_halo_sync(i+1, h_halo_sync, dimGrid.x * dimGrid.y);
+            */
         }
         p_swap = d_vcnt_in;
         d_vcnt_in = d_vcnt_out;
