@@ -22,7 +22,7 @@
 #define EPS                1e-5
 #define ENV_DIM_X          100
 #define ENV_DIM_Y          100
-#define N_ITER             8000
+#define N_ITER             12000
 #define MAX_CAP            10.f
 #define TL_PERIOD          5                          // traffic light period, # of steps, must be integer
 using namespace std;
