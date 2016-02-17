@@ -597,7 +597,7 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
             p_cnt[idx].w = .5*aver_per_cell * rand() / RAND_MAX;
         }
     }
-/*
+
     // edge
     int idx;
     // first row
@@ -621,7 +621,7 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
         p_cap[idx] = MAX_CAP;
         p_cnt[idx] = make_float4(.0, .0, .0, .0);          
     }    
-*/    
+    
     // traffic light information 
     for(int r = 0; r < Ngy; r++){
         for(int c = 0; c < Ngx; c++){
