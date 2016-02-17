@@ -190,7 +190,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     }
 
     if(threadIdx.y == 0){                                            // top halo
-        if(upd_f){
+        if(g_idy > 0){
             tl_info = d_tl[uni_id-Ngx];                              // traffic light
             float4 v_cnt = p_vcnt_in[uni_id-Ngx];
             if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
