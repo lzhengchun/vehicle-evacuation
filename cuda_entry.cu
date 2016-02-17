@@ -65,7 +65,15 @@ __global__ void curand_init_all(unsigned int seed, curandState_t* states, int Ng
                 0,          /* the offset is how much extra we advance in the sequence for each call, can be 0 */
                 &states[uni_id]);
 }
-
+/*
+***********************************************************************************************************
+* func   name: *
+* description: * overloading for float4 scale 
+* parameters :
+*             none
+* return: none
+***********************************************************************************************************
+*/
 __device__ float4 operator*(const float4 & a, const float & b) {
 
     return make_float4(a.x*b, a.y*b, a.z*b, a.w*b);
@@ -177,7 +185,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
         }else{
             io[idy][CUDA_BLOCK_SIZE+1] = make_float4(0.f, 0.f, 0.f, 0.f);
         }
-        halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].z;        	 // will be used to computing how many vehicles get accepted by west cell
+        halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].w;        	 // will be used to computing how many vehicles get accepted by west cell
     }
 
     if(threadIdx.y == 0){                                            // top halo
