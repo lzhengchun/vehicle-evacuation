@@ -339,6 +339,9 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                     io[idy][idx+1].w = in_distr.x + in_distr.y + in_distr.z + in_distr.w;            
                     break;                                                            
             }   
+        }
+        if(io[idy-1][idx].z < 0 || io[idy][idx-1].y < 0 || io[idy+1][idx].x < 0 || io[idy][idx+1].w < 0){
+            exit(-1);
         }                   
     } 
     __syncthreads();
