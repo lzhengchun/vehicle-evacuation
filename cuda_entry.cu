@@ -606,17 +606,17 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
     for(int r = 0; r < Ngy; r++){
         idx = r * Ngx + 0;
         p_cap[idx] = MAX_CAP;
-        p_cnt[idx].x = make_float4(.0, .0, .0, .0); 
+        p_cnt[idx] = make_float4(.0, .0, .0, .0); 
                 
         idx = r * Ngx + Ngx-1;
         p_cap[idx] = MAX_CAP;
-        p_cnt[idx].x = make_float4(.0, .0, .0, .0);               
+        p_cnt[idx] = make_float4(.0, .0, .0, .0);               
     }
     // bottom
     for(int c = 0; c < Ngx; c++){
         idx = (Ngy-1)*Ngx + c;
         p_cap[idx] = MAX_CAP;
-        p_cnt[idx].x = make_float4(.0, .0, .0, .0);          
+        p_cnt[idx] = make_float4(.0, .0, .0, .0);          
     }    
     // traffic offset 
     
