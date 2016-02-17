@@ -117,7 +117,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     __shared__ float4 io_bk[CUDA_BLOCK_SIZE+2][CUDA_BLOCK_SIZE+2];
     __shared__ float halo_sync[4][CUDA_BLOCK_SIZE+2];  // order: N -> E -> S -> W
     // use the flag to ignore outmost layer
-    bool upd_f = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
+    // bool upd_f = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
     bool exit_flag   = g_idx > 80 && g_idx <= Ngx-1 && g_idy == Ngy-1;
     exit_flag = exit_flag || (g_idx == Ngx-1 && g_idy >= 50 && g_idy <= 70);
     
@@ -145,7 +145,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
 
     // extra work for edge threads, for the halo, only one direction needs determine
     if(threadIdx.x == 0){                            	                 // left halo
-        if(upd_f){
+        if(g_idx > 0){
             tl_info = d_tl[uni_id-1];                                    // traffic light
             float4 v_cnt = p_vcnt_in[uni_id-1];
             if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
@@ -167,7 +167,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     }
 
     if(threadIdx.x == CUDA_BLOCK_SIZE-1){                            // right halo
-        if(upd_f){
+        if(g_idx < Ngx-1){
             tl_info = d_tl[uni_id+1];                                // traffic light
             float4 v_cnt = p_vcnt_in[uni_id+1];
             if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
@@ -213,7 +213,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     }
             
     if(threadIdx.y == CUDA_BLOCK_SIZE-1){                                // bottom halo
-        if(upd_f){
+        if(g_idy < Ngy-1){
             tl_info = d_tl[uni_id+Ngx];                                  // traffic light
             float4 v_cnt = p_vcnt_in[uni_id+Ngx];
             if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
@@ -740,12 +740,14 @@ int main()
             }  
             write_vehicle_cnt_info(i+1, h_vcnt, Ngx, Ngy);
             // for debug           
+            /*
             cuda_error = cudaMemcpy((void *)h_halo_sync, (void *)d_helper, 4*CUDA_BLOCK_SIZE*dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyDeviceToHost);
             if (cuda_error != cudaSuccess){
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
                 exit(-1);
             }              
-            write_halo_sync(i+1, h_halo_sync, dimGrid.x * dimGrid.y);          
+            write_halo_sync(i+1, h_halo_sync, dimGrid.x * dimGrid.y);    
+            */      
         }
         p_swap = d_vcnt_in;
         d_vcnt_in = d_vcnt_out;
