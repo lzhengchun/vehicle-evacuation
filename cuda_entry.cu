@@ -26,7 +26,7 @@
 #define N_ITER             30400
 #define MAX_CAP            4.f
 #define TL_PERIOD          5                          // traffic light period, # of steps, must be integer
-#define SINK(r, c)         ((r>225 && r<275 && c>25 && c<75) || (r>225 && r<275 && c>225 && c<275) )
+#define SINK(r, c)         ((r>225 && r<235 && c>25 && c<35) || (r>225 && r<235 && c>225 && c<235) )
 
 using namespace std;
 /*
@@ -564,7 +564,7 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
     for(int r = idx_row_s[2]; r < idx_row_e[2]; r++){
         for(int c = idx_col_s[1]; c < idx_col_e[1]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(.05, .4, .05, .4);
+            p_turn[idx] = make_float4(.05, .45, .05, .45);
         }
     }    
     // [2, 2]  
