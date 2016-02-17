@@ -339,10 +339,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                     io[idy][idx+1].w = in_distr.x + in_distr.y + in_distr.z + in_distr.w;            
                     break;                                                            
             }   
-        }
-        if(io[idy-1][idx].z < 0 || io[idy][idx-1].y < 0 || io[idy+1][idx].x < 0 || io[idy][idx+1].w < 0){
-            asm("trap;");
-        }                   
+        }                 
     } 
     __syncthreads();
 // add saturated vehicle back to counter, pre_cnt - (want_go - saturated) + incoming(in_cap - in_cap_left)
@@ -360,21 +357,33 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     if(threadIdx.x == 0){                                // left
         int id_helper = id_helper_st + 3*CUDA_BLOCK_SIZE + threadIdx.y;
         d_halo_sync[id_helper] = halo_sync[3][idy] - io[idy][0].y;      // number of vehicles which actully go out
+        if(d_halo_sync[id_helper] > VEHICLE_PER_STEP){
+            asm("trap;");
+        }
     }      
     if(threadIdx.x == CUDA_BLOCK_SIZE-1){                // right
         int id_helper = id_helper_st + CUDA_BLOCK_SIZE + threadIdx.y;
-        d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;       
+        d_halo_sync[id_helper] = halo_sync[1][idy] - io[idy][CUDA_BLOCK_SIZE+1].w;     
+        if(d_halo_sync[id_helper] > VEHICLE_PER_STEP){
+            asm("trap;");
+        }          
     }
 
     if(threadIdx.y == 0){                                // top
         int id_helper = id_helper_st + threadIdx.x;
-        d_halo_sync[id_helper] = halo_sync[0][idx] - io[0][idx].z;       
+        d_halo_sync[id_helper] = halo_sync[0][idx] - io[0][idx].z;    
+        if(d_halo_sync[id_helper] > VEHICLE_PER_STEP){
+            asm("trap;");
+        }           
     }
 
     if(threadIdx.y == CUDA_BLOCK_SIZE-1){                // bottom
         int id_helper = id_helper_st + 2*CUDA_BLOCK_SIZE + threadIdx.x;
         d_halo_sync[id_helper] = halo_sync[2][idx] - io[CUDA_BLOCK_SIZE+1][idx].x;     
-    }     
+        if(d_halo_sync[id_helper] > VEHICLE_PER_STEP){
+            asm("trap;");
+        }        
+    }    
 }
 /*
 ***********************************************************************************************************
