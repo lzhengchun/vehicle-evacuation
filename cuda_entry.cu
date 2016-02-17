@@ -22,7 +22,7 @@
 #define EPS                1e-5
 #define ENV_DIM_X          300
 #define ENV_DIM_Y          300
-#define INIT_CARS          70000.f
+#define INIT_CARS          50000.f
 #define N_ITER             30400
 #define MAX_CAP            4.f
 #define TL_PERIOD          5                          // traffic light period, # of steps, must be integer
@@ -528,7 +528,7 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
     for(int r = idx_row_s[0]; r < idx_row_e[0]; r++){
         for(int c = idx_col_s[2]; c < idx_col_e[2]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(0.0, 0.0, 1.0, 0.0);
+            p_turn[idx] = make_float4(0.0, 0.0, 0.5, 0.5);
         }
     }
     
