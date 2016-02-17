@@ -21,7 +21,7 @@
 #define EPS                1e-5
 #define ENV_DIM_X          100
 #define ENV_DIM_Y          100
-#define N_ITER             4000
+#define N_ITER             1000
 #define MAX_CAP            10.f
 #define TL_PERIOD          5                          // traffic light period, # of steps, must be integer
 using namespace std;
@@ -106,7 +106,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     }
     __shared__ float4    io[CUDA_BLOCK_SIZE+2][CUDA_BLOCK_SIZE+2];
     __shared__ float4 io_bk[CUDA_BLOCK_SIZE+2][CUDA_BLOCK_SIZE+2];
-    __shared__ float halo_sync[4][CUDA_BLOCK_SIZE];  // order: N -> E -> S -> W
+    __shared__ float halo_sync[4][CUDA_BLOCK_SIZE+2];  // order: N -> E -> S -> W
     // use the flag to ignore outmost layer
     bool upd_f = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
     bool exit_flag   = g_idx > 80 && g_idx <= Ngx-1 && g_idy == Ngy-1;
