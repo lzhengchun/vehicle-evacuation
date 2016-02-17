@@ -528,7 +528,7 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
     for(int r = idx_row_s[0]; r < idx_row_e[0]; r++){
         for(int c = idx_col_s[2]; c < idx_col_e[2]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(.0, .0, .5, .5);
+            p_turn[idx] = make_float4(0.0, 0.0, 0.5, 0.5);
         }
     }
     
@@ -536,42 +536,42 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
     for(int r = idx_row_s[1]; r < idx_row_e[1]; r++){
         for(int c = idx_col_s[0]; c < idx_col_e[0]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(.0, .5, .5, .0);
+            p_turn[idx] = make_float4(0.0, 0.5, 0.5, 0.0);
         }
     }    
     // [1, 1]
     for(int r = idx_row_s[1]; r < idx_row_e[1]; r++){
         for(int c = idx_col_s[1]; c < idx_col_e[1]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(.0, .25, .5, .25);
+            p_turn[idx] = make_float4(0.0, 0.25, 0.5, 0.25);
         }
     }    
     // [1, 2]
     for(int r = idx_row_s[1]; r < idx_row_e[1]; r++){
         for(int c = idx_col_s[2]; c < idx_col_e[2]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(.0, .0, .5, .5);
+            p_turn[idx] = make_float4(0.0, 0.0, 0.5, 0.5);
         }
     }    
     // [2, 0]
     for(int r = idx_row_s[2]; r < idx_row_e[2]; r++){
         for(int c = idx_col_s[0]; c < idx_col_e[0]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(.25, .25, .25, .25);
+            p_turn[idx] = make_float4(0.25, 0.25, 0.25, 0.25);
         }
     }    
     // [2, 1]
     for(int r = idx_row_s[2]; r < idx_row_e[2]; r++){
         for(int c = idx_col_s[1]; c < idx_col_e[1]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(.05, .45, .05, .45);
+            p_turn[idx] = make_float4(0.05, 0.45, 0.05, 0.45);
         }
     }    
     // [2, 2]  
     for(int r = idx_row_s[2]; r < idx_row_e[2]; r++){
         for(int c = idx_col_s[2]; c < idx_col_e[2]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(.25, .25, .25, .25);
+            p_turn[idx] = make_float4(0.25, 0.25, 0.25, 0.25);
         }
     }    
 }
@@ -598,7 +598,7 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
             p_cnt[idx].w = .5*aver_per_cell * rand() / RAND_MAX;
         }
     }
-
+/*
     // edge
     int idx;
     // first row
@@ -622,7 +622,7 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
         p_cap[idx] = MAX_CAP;
         p_cnt[idx] = make_float4(.0, .0, .0, .0);          
     }    
-    
+*/    
     // traffic light information 
     for(int r = 0; r < Ngy; r++){
         for(int c = 0; c < Ngx; c++){
