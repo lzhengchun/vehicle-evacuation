@@ -22,7 +22,7 @@
 #define EPS                1e-5
 #define ENV_DIM_X          100
 #define ENV_DIM_Y          100
-#define N_ITER             12000
+#define N_ITER             20400
 #define MAX_CAP            10.f
 #define TL_PERIOD          5                          // traffic light period, # of steps, must be integer
 using namespace std;
@@ -732,7 +732,7 @@ int main()
             cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
             exit(-1);
         } 
-        if((i+1)%200 == 0) {
+        if((i+1)%400 == 0) {
             cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_out, sizeof(float4)*Ngx*Ngy, cudaMemcpyDeviceToHost);
             if (cuda_error != cudaSuccess){
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
