@@ -25,7 +25,7 @@
 #define INIT_CARS          50000.f
 #define N_ITER             30400
 #define MAX_CAP            4.f
-#define TL_PERIOD          5                          // traffic light period, # of steps, must be integer
+#define TL_PERIOD          10                          // traffic light period, # of steps, must be integer
 #define SINK(r, c)         ((r>225 && r<235 && c>25 && c<35) || (r>225 && r<235 && c>265 && c<275) )
 
 using namespace std;
