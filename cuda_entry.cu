@@ -121,8 +121,6 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     __shared__ float halo_sync[4][CUDA_BLOCK_SIZE+2];  // order: N -> E -> S -> W
     // use the flag to ignore outmost layer
     // bool upd_f = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
-    // bool exit_flag   = g_idx > 80 && g_idx <= Ngx-1 && g_idy == Ngy-1;
-    // exit_flag = exit_flag || (g_idx == Ngx-1 && g_idy >= 50 && g_idy <= 70);
     bool exit_flag = false; //SINK(g_idy, g_idx);
     
     uchar2 tl_info = d_tl[uni_id];           	                 // traffic light information
@@ -163,10 +161,10 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                 io[idy][0].z = fminf(VEHICLE_PER_STEP, v_cnt.z);         // go south
                 io[idy][0].w = 0.f;                                      // go west        
             }
-            io_bk[idy][0] = io[idy][0];  
         }else{
             io[idy][0] = make_float4(0.f, 0.f, 0.f, 0.f);
         }
+        io_bk[idy][0] = io[idy][0];
         halo_sync[3][idy] = io[idy][0].y;        	                 // will be used to computing how many vehicles get accepted by west cell
     }
 
@@ -185,11 +183,11 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                 io[idy][CUDA_BLOCK_SIZE+1].y = 0.f;                                    // go east       
                 io[idy][CUDA_BLOCK_SIZE+1].z = fminf(VEHICLE_PER_STEP, v_cnt.z);       // go south
                 io[idy][CUDA_BLOCK_SIZE+1].w = 0.f;                                    // go west        
-            }
-            io_bk[idy][CUDA_BLOCK_SIZE+1] = io[idy][CUDA_BLOCK_SIZE+1];  
+            } 
         }else{
             io[idy][CUDA_BLOCK_SIZE+1] = make_float4(0.f, 0.f, 0.f, 0.f);
         }
+        io_bk[idy][CUDA_BLOCK_SIZE+1] = io[idy][CUDA_BLOCK_SIZE+1];
         halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].w;        	 // will be used to computing how many vehicles get accepted by west cell
     }
 
@@ -209,10 +207,10 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                 io[0][idx].z = fminf(VEHICLE_PER_STEP, v_cnt.z);         // go south
                 io[0][idx].w = 0.f;                                      // go west        
             }
-            io_bk[0][idx] = io[0][idx]; 
         }else{
         	   io[0][idx] = make_float4(0.f, 0.f, 0.f, 0.f);     
         }
+        io_bk[0][idx] = io[0][idx];
         halo_sync[0][idx] = io[0][idx].z;        	                     // will be used to computing how many vehicles get accepted by west cell
     }
             
@@ -232,10 +230,10 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                 io[CUDA_BLOCK_SIZE+1][idx].z = fminf(VEHICLE_PER_STEP, v_cnt.z);       // go south
                 io[CUDA_BLOCK_SIZE+1][idx].w = 0.f;                                    // go west        
             }
-            io_bk[CUDA_BLOCK_SIZE+1][idx] = io[CUDA_BLOCK_SIZE+1][idx]; 
         }else{
              io[CUDA_BLOCK_SIZE+1][idx] = make_float4(0.f, 0.f, 0.f, 0.f); 
         }
+        io_bk[CUDA_BLOCK_SIZE+1][idx] = io[CUDA_BLOCK_SIZE+1][idx]; 
         halo_sync[2][idx] = io[CUDA_BLOCK_SIZE+1][idx].x;      	                  // will be used to computing how many vehicles get accepted by west cell
     }
       
@@ -592,13 +590,13 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
         for(int c = 0; c < Ngx; c++){
             int idx = r*Ngx+c;
             p_cap[idx] = MAX_CAP;
-            p_cnt[idx].x = .5*aver_per_cell * rand() / RAND_MAX;
-            p_cnt[idx].y = .5*aver_per_cell * rand() / RAND_MAX;
-            p_cnt[idx].z = .5*aver_per_cell * rand() / RAND_MAX;
-            p_cnt[idx].w = .5*aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].x = .5 * aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].y = .5 * aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].z = .5 * aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].w = .5 * aver_per_cell * rand() / RAND_MAX;
         }
     }
-
+/*
     // edge
     int idx;
     // first row
@@ -633,6 +631,7 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
             h_tl[idx].y = 1 + rand() % (TL_PERIOD - 1);     
         }
     }
+    */
 }
 /*
 ***********************************************************************************************************
