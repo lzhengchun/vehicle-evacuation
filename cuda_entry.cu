@@ -15,10 +15,7 @@
 #include <vector_functions.h>
 #include <cstdlib>
 #include <fstream>
-#include <helper_functions.h>
-#include <helper_cuda.h>
-#include "cuprintf.cu"
-#include "cuPrintf.cuh"
+#include <stdio.h>
 
 #define CUDA_BLOCK_SIZE    16
 #define VEHICLE_PER_STEP   1.5
