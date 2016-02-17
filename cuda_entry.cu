@@ -18,13 +18,16 @@
 #include <stdio.h>
 
 #define CUDA_BLOCK_SIZE    16
-#define VEHICLE_PER_STEP   2.0
+#define VEHICLE_PER_STEP   .5
 #define EPS                1e-5
-#define ENV_DIM_X          100
-#define ENV_DIM_Y          100
+#define ENV_DIM_X          300
+#define ENV_DIM_Y          300
+#define INIT_CARS          50000.f
 #define N_ITER             20400
-#define MAX_CAP            10.f
+#define MAX_CAP            4.f
 #define TL_PERIOD          5                          // traffic light period, # of steps, must be integer
+#define SINK(r, c)         ((r>225 && r<275 && c>25 && c<75) || (r>225 && r<275 && c>225 && c<275) )
+
 using namespace std;
 /*
 ***********************************************************************************************************
@@ -118,8 +121,9 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     __shared__ float halo_sync[4][CUDA_BLOCK_SIZE+2];  // order: N -> E -> S -> W
     // use the flag to ignore outmost layer
     // bool upd_f = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
-    bool exit_flag   = g_idx > 80 && g_idx <= Ngx-1 && g_idy == Ngy-1;
-    exit_flag = exit_flag || (g_idx == Ngx-1 && g_idy >= 50 && g_idy <= 70);
+    // bool exit_flag   = g_idx > 80 && g_idx <= Ngx-1 && g_idy == Ngy-1;
+    // exit_flag = exit_flag || (g_idx == Ngx-1 && g_idy >= 50 && g_idy <= 70);
+    bool exit_flag = SINK(g_idy, g_idx);
     
     uchar2 tl_info = d_tl[uni_id];           	                 // traffic light information
     bool tl_hor = (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y; // current traffic light
@@ -464,12 +468,15 @@ void evacuation_cuda_finalize()
 */
 void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
 {
+    /*
     for(int r = 1; r < Ngy-1; r++){
         for(int c = 1; c < Ngx-1; c++){
             int idx = r*Ngx+c;
             p_turn[idx] = make_float4(.1, .4, .4, .1);
         }
     }
+
+    // borders
     // top
     for(int c = 0; c < Ngx; c++){
         p_turn[c] = make_float4(.0, .4, .5, .1);
@@ -492,6 +499,79 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
     p_turn[Ngx-1]               = make_float4(.0, .0, .5, .5);
     p_turn[(Ngy-1)*Ngx]         = make_float4(.5, .5, .0, .0);
     p_turn[(Ngy-1)*Ngx + Ngx-1] = make_float4(.5, .0, .0, .5);  
+    */
+    int idx_col_s[3] = {0, Ngx/3, 2*Ngx/3};
+    int idx_col_e[3] = {Ngx/3, 2*Ngx/3, Ngx};
+
+    int idx_row_s[3] = {0, Ngy/3, 2*Ngy/3};
+    int idx_row_e[3] = {Ngy/3, 2*Ngy/3, Ngy};
+        
+    //[0, 0]
+    for(int r = idx_row_s[0]; r < idx_row_e[0]; r++){
+        for(int c = idx_col_s[0]; c < idx_col_e[0]; c++){
+            int idx = r * Ngx + c;
+            p_turn[idx] = make_float4(.0, .3, .7, .0);
+        }
+    }
+    
+    // [0, 1]
+    for(int r = idx_row_s[0]; r < idx_row_e[0]; r++){
+        for(int c = idx_col_s[1]; c < idx_col_e[1]; c++){
+            int idx = r * Ngx + c;
+            p_turn[idx] = make_float4(.0, .15, .7, .15);
+        }
+    }
+    
+    // [0, 2]
+    for(int r = idx_row_s[0]; r < idx_row_e[0]; r++){
+        for(int c = idx_col_s[2]; c < idx_col_e[2]; c++){
+            int idx = r * Ngx + c;
+            p_turn[idx] = make_float4(.0, .0, .7, .3);
+        }
+    }
+    
+    // [1, 0]      
+    for(int r = idx_row_s[1]; r < idx_row_e[1]; r++){
+        for(int c = idx_col_s[0]; c < idx_col_e[0]; c++){
+            int idx = r * Ngx + c;
+            p_turn[idx] = make_float4(.0, .5, .5, .0);
+        }
+    }    
+    // [1, 1]
+    for(int r = idx_row_s[1]; r < idx_row_e[1]; r++){
+        for(int c = idx_col_s[1]; c < idx_col_e[1]; c++){
+            int idx = r * Ngx + c;
+            p_turn[idx] = make_float4(.0, .25, .5, .25);
+        }
+    }    
+    // [1, 2]
+    for(int r = idx_row_s[1]; r < idx_row_e[1]; r++){
+        for(int c = idx_col_s[2]; c < idx_col_e[2]; c++){
+            int idx = r * Ngx + c;
+            p_turn[idx] = make_float4(.0, .0, .5, .5);
+        }
+    }    
+    // [2, 0]
+    for(int r = idx_row_s[2]; r < idx_row_e[2]; r++){
+        for(int c = idx_col_s[0]; c < idx_col_e[0]; c++){
+            int idx = r * Ngx + c;
+            p_turn[idx] = make_float4(.25, .25, .25, .25);
+        }
+    }    
+    // [2, 1]
+    for(int r = idx_row_s[2]; r < idx_row_e[2]; r++){
+        for(int c = idx_col_s[1]; c < idx_col_e[1]; c++){
+            int idx = r * Ngx + c;
+            p_turn[idx] = make_float4(.0, .35, .3, .35);
+        }
+    }    
+    // [2, 2]  
+    for(int r = idx_row_s[2]; r < idx_row_e[2]; r++){
+        for(int c = idx_col_s[2]; c < idx_col_e[2]; c++){
+            int idx = r * Ngx + c;
+            p_turn[idx] = make_float4(.25, .25, .25, .25);
+        }
+    }    
 }
 /*
 ***********************************************************************************************************
@@ -504,14 +584,15 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
 */
 void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, int Ngy)
 {
+    float aver_per_cell = INIT_CARS / (Ngx*Ngy);
     for(int r = 1; r < Ngy-1; r++){
         for(int c = 1; c < Ngx-1; c++){
             int idx = r*Ngx+c;
             p_cap[idx] = MAX_CAP;
-            p_cnt[idx].x = p_cap[idx] * rand() / RAND_MAX / 4.f;
-            p_cnt[idx].y = p_cap[idx] * rand() / RAND_MAX / 4.f;
-            p_cnt[idx].z = p_cap[idx] * rand() / RAND_MAX / 4.f;
-            p_cnt[idx].w = p_cap[idx] * rand() / RAND_MAX / 4.f;
+            p_cnt[idx].x = 2*aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].y = 2*aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].z = 2*aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].w = 2*aver_per_cell * rand() / RAND_MAX;
         }
     }
     // edge
@@ -519,35 +600,23 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
     // first row
     for(int c = 0; c < Ngx; c++){
         p_cap[c] = MAX_CAP;
-        p_cnt[c].x = 0;
-        p_cnt[c].y = 0;
-        p_cnt[c].z = 0;
-        p_cnt[c].w = 0;       
+        p_cnt[c] = make_float4(.0, .0, .0, .0);    
     }
     // left and right
     for(int r = 0; r < Ngy; r++){
         idx = r * Ngx + 0;
         p_cap[idx] = MAX_CAP;
-        p_cnt[idx].x = 0;
-        p_cnt[idx].y = 0;
-        p_cnt[idx].z = 0;
-        p_cnt[idx].w = 0;    
+        p_cnt[idx].x = make_float4(.0, .0, .0, .0); 
                 
         idx = r * Ngx + Ngx-1;
         p_cap[idx] = MAX_CAP;
-        p_cnt[idx].x = 0;
-        p_cnt[idx].y = 0;   
-        p_cnt[idx].z = 0;
-        p_cnt[idx].w = 0;                 
+        p_cnt[idx].x = make_float4(.0, .0, .0, .0);               
     }
     // bottom
     for(int c = 0; c < Ngx; c++){
         idx = (Ngy-1)*Ngx + c;
         p_cap[idx] = MAX_CAP;
-        p_cnt[idx].x = 0;
-        p_cnt[idx].y = 0;
-        p_cnt[idx].z = 0;
-        p_cnt[idx].w = 0;            
+        p_cnt[idx].x = make_float4(.0, .0, .0, .0);          
     }    
     // traffic offset 
     
@@ -623,7 +692,7 @@ void write_halo_sync(int time_step, float * p_halo_sync, int n_block)
 */
 int main()
 {
-    int Ngx = ENV_DIM_X + 2, Ngy = ENV_DIM_Y + 2;
+    int Ngx = ENV_DIM_X + 0, Ngy = ENV_DIM_Y + 0;
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                                  // order: north -> east -> south -> west
     cudaError_t cuda_error;
