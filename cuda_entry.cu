@@ -132,19 +132,18 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
         io[idy][idx].z = fminf(VEHICLE_PER_STEP, cnt_temp.z);    // go south
         io[idy][idx].w = 0.f;                                    // go west
     }
-    io_bk[idy][idx] = io[idy][idx];                             // back up the number for calculating difference
+    io_bk[idy][idx] = io[idy][idx];                              // back up the number for calculating difference
 
     // extra work for edge threads, for the halo, only one direction needs determine
-    if(threadIdx.x == 0){                            	        // left halo
+    if(threadIdx.x == 0){                            	                 // left halo
         if(upd_f){
-            tl_info = d_tl[uni_id-1];                               // traffic light
+            tl_info = d_tl[uni_id-1];                                    // traffic light
             float4 v_cnt = p_vcnt_in[uni_id-1];
             if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
                 io[idy][0].x = 0.f;                                      // go north
                 io[idy][0].y = fminf(VEHICLE_PER_STEP, v_cnt.y);         // go east        
                 io[idy][0].z = 0.f;                                      // go south
-                io[idy][0].w = fminf(VEHICLE_PER_STEP, v_cnt.w);         // go west    
-                
+                io[idy][0].w = fminf(VEHICLE_PER_STEP, v_cnt.w);         // go west 
             }else{	                                                     // vertical light 
                 io[idy][0].x = fminf(VEHICLE_PER_STEP, v_cnt.x);         // go north
                 io[idy][0].y = 0.f;                                      // go east       
@@ -158,9 +157,9 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
         halo_sync[3][idy] = io[idy][0].y;        	                 // will be used to computing how many vehicles get accepted by west cell
     }
 
-    if(threadIdx.x == CUDA_BLOCK_SIZE-1){                       // right halo
+    if(threadIdx.x == CUDA_BLOCK_SIZE-1){                            // right halo
         if(upd_f){
-            tl_info = d_tl[uni_id+1];                               // traffic light
+            tl_info = d_tl[uni_id+1];                                // traffic light
             float4 v_cnt = p_vcnt_in[uni_id+1];
             if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
                 io[idy][CUDA_BLOCK_SIZE+1].x = 0.f;                                    // go north
@@ -178,35 +177,35 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
         }else{
             io[idy][CUDA_BLOCK_SIZE+1] = make_float4(0.f, 0.f, 0.f, 0.f);
         }
-        halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].z;        	           // will be used to computing how many vehicles get accepted by west cell
+        halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].z;        	 // will be used to computing how many vehicles get accepted by west cell
     }
 
-    if(threadIdx.y == 0){                                       // top halo
+    if(threadIdx.y == 0){                                            // top halo
         if(upd_f){
-            tl_info = d_tl[uni_id-Ngx];                             // traffic light
+            tl_info = d_tl[uni_id-Ngx];                              // traffic light
             float4 v_cnt = p_vcnt_in[uni_id-Ngx];
             if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
-                io[0][idx].x = 0.f;                                    // go north
-                io[0][idx].y = fminf(VEHICLE_PER_STEP, v_cnt.y);       // go east        
-                io[0][idx].z = 0.f;                                    // go south
-                io[0][idx].w = fminf(VEHICLE_PER_STEP, v_cnt.w);       // go west    
+                io[0][idx].x = 0.f;                                      // go north
+                io[0][idx].y = fminf(VEHICLE_PER_STEP, v_cnt.y);         // go east        
+                io[0][idx].z = 0.f;                                      // go south
+                io[0][idx].w = fminf(VEHICLE_PER_STEP, v_cnt.w);         // go west    
                 
-            }else{	                                                   // vertical light 
-                io[0][idx].x = fminf(VEHICLE_PER_STEP, v_cnt.x);       // go north
-                io[0][idx].y = 0.f;                                    // go east       
-                io[0][idx].z = fminf(VEHICLE_PER_STEP, v_cnt.z);       // go south
-                io[0][idx].w = 0.f;                                    // go west        
+            }else{	                                                     // vertical light 
+                io[0][idx].x = fminf(VEHICLE_PER_STEP, v_cnt.x);         // go north
+                io[0][idx].y = 0.f;                                      // go east       
+                io[0][idx].z = fminf(VEHICLE_PER_STEP, v_cnt.z);         // go south
+                io[0][idx].w = 0.f;                                      // go west        
             }
             io_bk[0][idx] = io[0][idx]; 
         }else{
         	   io[0][idx] = make_float4(0.f, 0.f, 0.f, 0.f);     
         }
-        halo_sync[0][idx] = io[0][idx].z;        	                   // will be used to computing how many vehicles get accepted by west cell
+        halo_sync[0][idx] = io[0][idx].z;        	                     // will be used to computing how many vehicles get accepted by west cell
     }
             
-    if(threadIdx.y == CUDA_BLOCK_SIZE-1){                                       // bottom halo
+    if(threadIdx.y == CUDA_BLOCK_SIZE-1){                                // bottom halo
         if(upd_f){
-            tl_info = d_tl[uni_id+Ngx];                               // traffic light
+            tl_info = d_tl[uni_id+Ngx];                                  // traffic light
             float4 v_cnt = p_vcnt_in[uni_id+Ngx];
             if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
                 io[CUDA_BLOCK_SIZE+1][idx].x = 0.f;                                    // go north
@@ -231,30 +230,29 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     __syncthreads();  
 
 /// 2nd step, process incoming vehicles, it will update outgoing requests of neighboors. 
-    float4 diff_cap, diff_bk;                     // the capacity of incoming vehicles 
+    float4 diff_cap, diff_bk;                         // the capacity of incoming vehicles 
     diff_cap.x = cap[uni_id]/4.f - cnt_temp.x; 
     diff_cap.y = cap[uni_id]/4.f - cnt_temp.y; 
     diff_cap.z = cap[uni_id]/4.f - cnt_temp.z; 
     diff_cap.w = cap[uni_id]/4.f - cnt_temp.w; 
-    diff_bk = diff_cap;                                  // save the capacity for computing how many vehicles entered at the end
+    diff_bk = diff_cap;                               // save the capacity for computing how many vehicles entered at the end
     // priority ? random
     // returns a random number between 0.0 and 1.0 following a uniform distribution.
     
-    float4 pturn_c = pturn[uni_id];          // turn probabilities of the cell [i, j]
+    float4 pturn_c = pturn[uni_id];                   // turn probabilities of the cell [i, j]
     int rnd = (unsigned char)( curand_uniform(&states[uni_id])*24 ); 
     float4 in_distr;
     bool md_flg;
-    for (int i=0; i<4 && (diff_cap.x > EPS || diff_cap.y > EPS); i++)
+    for (int i=0; i<4 && (diff_cap.x > EPS || diff_cap.y > EPS || diff_cap.z > EPS || diff_cap.w > EPS); i++)
     {
         switch(order[rnd][i])
         {
-            case 0:	                             // enter from top 
+            case 0:	                                  // enter from top 
                 if(io[idy-1][idx].z > 0){           
                     in_distr = pturn_c * io[idy-1][idx].z;  // incoming distribution
                     md_flg = true;
                 }else{
                     md_flg = false;
-                    break;
                 }                                                                          
                 break;
             case 1:                              // enter from left
@@ -263,7 +261,6 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                     md_flg = true;
                 }else{
                     md_flg = false;
-                    break;
                 }                                                                                          
                 break;
             case 2:                              // enter from bottom
@@ -272,7 +269,6 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                     md_flg = true;
                 }else{
                     md_flg = false;
-                    break;
                 }                                                                                        
                 break;
             case 3:                              // enter from right
@@ -281,7 +277,6 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                     md_flg = true;
                 }else{
                     md_flg = false;
-                    break;
                 }                                                                                                
                 break;                                                            
         }
