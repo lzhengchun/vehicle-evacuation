@@ -23,7 +23,7 @@
 #define ENV_DIM_X          300
 #define ENV_DIM_Y          300
 #define INIT_CARS          50000.f
-#define N_ITER             20400
+#define N_ITER             30400
 #define MAX_CAP            4.f
 #define TL_PERIOD          5                          // traffic light period, # of steps, must be integer
 #define SINK(r, c)         ((r>225 && r<275 && c>25 && c<75) || (r>225 && r<275 && c>225 && c<275) )
