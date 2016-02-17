@@ -488,10 +488,10 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
         p_turn[idx] = make_float4(.5, .4, .0, .1);
     }   
     //
-    p_turn[0] = make_float4(.0, .5, .5, .0); 
-    p_turn[Ngx-1] = make_float4(.0, .0, .5, .5);
-    p_turn[(Ngy-1)] = make_float4(.5, .5, .0, .0);
-    p_turn[(Ngy-1)*(Ngx) + Ngx-1] = make_float4(.5, .0, .0, .5);  
+    p_turn[0]                   = make_float4(.0, .5, .5, .0); 
+    p_turn[Ngx-1]               = make_float4(.0, .0, .5, .5);
+    p_turn[(Ngy-1)*Ngx]         = make_float4(.5, .5, .0, .0);
+    p_turn[(Ngy-1)*Ngx + Ngx-1] = make_float4(.5, .0, .0, .5);  
 }
 /*
 ***********************************************************************************************************
