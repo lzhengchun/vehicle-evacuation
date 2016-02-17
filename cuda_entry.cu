@@ -587,16 +587,17 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
 void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, int Ngy)
 {
     float aver_per_cell = INIT_CARS / (Ngx*Ngy);
-    for(int r = 1; r < Ngy-1; r++){
-        for(int c = 1; c < Ngx-1; c++){
+    for(int r = 0; r < Ngy; r++){
+        for(int c = 0; c < Ngx; c++){
             int idx = r*Ngx+c;
             p_cap[idx] = MAX_CAP;
-            p_cnt[idx].x = 2*aver_per_cell * rand() / RAND_MAX;
-            p_cnt[idx].y = 2*aver_per_cell * rand() / RAND_MAX;
-            p_cnt[idx].z = 2*aver_per_cell * rand() / RAND_MAX;
-            p_cnt[idx].w = 2*aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].x = .5*aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].y = .5*aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].z = .5*aver_per_cell * rand() / RAND_MAX;
+            p_cnt[idx].w = .5*aver_per_cell * rand() / RAND_MAX;
         }
     }
+/*
     // edge
     int idx;
     // first row
@@ -620,8 +621,8 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
         p_cap[idx] = MAX_CAP;
         p_cnt[idx] = make_float4(.0, .0, .0, .0);          
     }    
-    // traffic offset 
-    
+*/    
+    // traffic light information 
     for(int r = 0; r < Ngy; r++){
         for(int c = 0; c < Ngx; c++){
             int idx = r*Ngx+c;
