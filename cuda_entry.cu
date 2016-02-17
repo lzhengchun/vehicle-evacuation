@@ -512,7 +512,7 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
     for(int r = idx_row_s[0]; r < idx_row_e[0]; r++){
         for(int c = idx_col_s[0]; c < idx_col_e[0]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(.0, .3, .7, .0);
+            p_turn[idx] = make_float4(.0, .5, .5, .0);
         }
     }
     
@@ -528,7 +528,7 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
     for(int r = idx_row_s[0]; r < idx_row_e[0]; r++){
         for(int c = idx_col_s[2]; c < idx_col_e[2]; c++){
             int idx = r * Ngx + c;
-            p_turn[idx] = make_float4(.0, .0, .7, .3);
+            p_turn[idx] = make_float4(.0, .0, .5, .5);
         }
     }
     
