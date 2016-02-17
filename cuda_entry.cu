@@ -602,9 +602,6 @@ void write_halo_sync(int time_step, float * p_halo_sync, int n_block)
     for(int b = 0; b < n_block; b++){
         for(int h = 0; h < 4*CUDA_BLOCK_SIZE; h++){
             int idx = b*4*CUDA_BLOCK_SIZE + h; 
-            if (p_halo_sync[idx] > VEHICLE_PER_STEP){
-                cout << "error: " << b << "->" << h << endl; 
-            }      
             output_file << p_halo_sync[idx] << ",";
             if((h+1) % CUDA_BLOCK_SIZE == 0){
                 output_file << "||";
@@ -755,7 +752,7 @@ int main()
             }  
             write_vehicle_cnt_info(i+1, h_vcnt, Ngx, Ngy);
             // for debug           
-            cuda_error = cudaMemcpy((void *)h_halo_sync, (void *)d_vcnt_out, 4*CUDA_BLOCK_SIZE*dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyDeviceToHost);
+            cuda_error = cudaMemcpy((void *)h_halo_sync, (void *)d_helper, 4*CUDA_BLOCK_SIZE*dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyDeviceToHost);
             if (cuda_error != cudaSuccess){
                 cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
                 exit(-1);
