@@ -242,17 +242,10 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
 
 /// 2nd step, process incoming vehicles, it will update outgoing requests of neighboors. 
     float4 diff_cap, diff_bk;                         // the capacity of incoming vehicles 
-    /*
     diff_cap.x = fmaxf(cap[uni_id]/4.f - cnt_temp.x, 0.f); // take max to avoid inproper initialization
     diff_cap.y = fmaxf(cap[uni_id]/4.f - cnt_temp.y, 0.f); 
     diff_cap.z = fmaxf(cap[uni_id]/4.f - cnt_temp.z, 0.f); 
     diff_cap.w = fmaxf(cap[uni_id]/4.f - cnt_temp.w, 0.f); 
-    */
-    diff_cap.x = cap[uni_id]/4.f - cnt_temp.x; // take max to avoid inproper initialization
-    diff_cap.y = cap[uni_id]/4.f - cnt_temp.y; 
-    diff_cap.z = cap[uni_id]/4.f - cnt_temp.z; 
-    diff_cap.w = cap[uni_id]/4.f - cnt_temp.w; 
-    
     diff_bk = diff_cap;                               // save the capacity for computing how many vehicles entered at the end
     // priority ? random
     // returns a random number between 0.0 and 1.0 following a uniform distribution.
@@ -580,6 +573,19 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
         }
     }    
 }
+
+bool turn_prob_verify(float4 *p_turn, int Ngx, int Ngy){
+    for(int r=0; r<Ngy; r++){
+        for(int c=0; c<Ngx; c++){
+            int idx = r*Ngx + c;
+            double sum = p_turn[idx].x + p_turn[idx].y + p_turn[idx].z + p_turn[idx].w;
+            if(sum - 1.0 > 1e-2 || sum - 1.0 < -1e-2){
+                return false;
+            }
+        }
+    }
+    return true;
+}
 /*
 ***********************************************************************************************************
 * func   name: evacuation_state_init
@@ -712,7 +718,10 @@ int main()
     uchar2 *h_tlinfo = new uchar2[Ngx*Ngy]();         // host memory for traffic light time offset, and pulse wideth for horizontal
     evacuation_field_init(h_turn, Ngx, Ngy);	      // initialize turn probabilities (the field) 
     evacuation_state_init(h_vcnt, h_vcap, h_tlinfo, Ngx, Ngy);  // initialize vehicle counters and cell capacity
-    
+    if(!turn_prob_verify(h_turn, Ngx, Ngy)){
+        cout << "error" << endl;
+        exit(-1);
+    }
     // device memory for counter (as input), counter (as output), turn probabilities, temporary for swaping
     float4 *d_vcnt_in, *d_vcnt_out, *d_turn, *p_swap;
     float  *d_vcap;
