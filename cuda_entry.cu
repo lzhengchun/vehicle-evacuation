@@ -121,7 +121,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     __shared__ float halo_sync[4][CUDA_BLOCK_SIZE+2];  // order: N -> E -> S -> W
     // use the flag to ignore outmost layer
     // bool upd_f = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
-    bool exit_flag = false; //SINK(g_idy, g_idx);
+    bool exit_flag = SINK(g_idy, g_idx);
     
     uchar2 tl_info = d_tl[uni_id];           	                 // traffic light information
     bool tl_hor = (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y; // current traffic light
