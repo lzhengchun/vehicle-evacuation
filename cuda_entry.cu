@@ -633,7 +633,7 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
         p_cap[idx] = MAX_CAP;
         p_cnt[idx] = make_float4(.0, .0, .0, .0);          
     }    
-    
+    */
     // traffic light information 
     for(int r = 0; r < Ngy; r++){
         for(int c = 0; c < Ngx; c++){
@@ -644,7 +644,7 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
             h_tl[idx].y = 1 + rand() % (TL_PERIOD - 1);     
         }
     }
-    */
+    
 }
 /*
 ***********************************************************************************************************
