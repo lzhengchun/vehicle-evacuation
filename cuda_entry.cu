@@ -20,8 +20,8 @@
 #define CUDA_BLOCK_SIZE    16
 #define VEHICLE_PER_STEP   .5
 #define EPS                1e-10
-#define ENV_DIM_X          256
-#define ENV_DIM_Y          256
+#define ENV_DIM_X          300
+#define ENV_DIM_Y          300
 #define INIT_CARS          50000.f
 #define N_ITER             30400
 #define MAX_CAP            4.f
@@ -121,7 +121,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     __shared__ float halo_sync[4][CUDA_BLOCK_SIZE+2];  // order: N -> E -> S -> W
     // use the flag to ignore outmost layer
     // bool upd_f = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
-    bool exit_flag = SINK(g_idy, g_idx);
+    bool exit_flag = false;//SINK(g_idy, g_idx);
     
     uchar2 tl_info = d_tl[uni_id];           	                 // traffic light information
     bool tl_hor = (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y; // current traffic light
@@ -235,6 +235,14 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
         }
         io_bk[CUDA_BLOCK_SIZE+1][idx] = io[CUDA_BLOCK_SIZE+1][idx]; 
         halo_sync[2][idx] = io[CUDA_BLOCK_SIZE+1][idx].x;      	                  // will be used to computing how many vehicles get accepted by west cell
+    }
+    // extra process for ENV size not perfectly divided by CUDA_BLOCK_SIZE
+    if(g_idx == Ngx-1 && threadIdx.x != CUDA_BLOCK_SIZE-1){
+        io[idy][idx+1] = make_float4(0.f, 0.f, 0.f, 0.f);  
+    } 
+    
+    if(g_idy == Ngy-1 && threadIdx.y != CUDA_BLOCK_SIZE-1){
+        io[idy+1][idx] = make_float4(0.f, 0.f, 0.f, 0.f); 
     }
       
     // then wait untill all the threads in the same thread block finish their outgoing computing processing
@@ -468,38 +476,6 @@ void evacuation_cuda_finalize()
 */
 void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
 {
-    /*
-    for(int r = 1; r < Ngy-1; r++){
-        for(int c = 1; c < Ngx-1; c++){
-            int idx = r*Ngx+c;
-            p_turn[idx] = make_float4(.1, .4, .4, .1);
-        }
-    }
-
-    // borders
-    // top
-    for(int c = 0; c < Ngx; c++){
-        p_turn[c] = make_float4(.0, .4, .5, .1);
-    }
-    // left and right
-    for(int r = 0; r < Ngy; r++){
-        int idx = r * Ngx + 0;
-        p_turn[idx] = make_float4(.1, .5, .4, .0);
-        
-        idx = r * Ngx + Ngx-1;
-        p_turn[idx] = make_float4(.1, .0, .4, .5);     
-    }
-    // bottom
-    for(int c = 0; c < Ngx; c++){
-        int idx = (Ngy-1)*Ngx + c;
-        p_turn[idx] = make_float4(.5, .4, .0, .1);
-    }   
-    //
-    p_turn[0]                   = make_float4(.0, .5, .5, .0); 
-    p_turn[Ngx-1]               = make_float4(.0, .0, .5, .5);
-    p_turn[(Ngy-1)*Ngx]         = make_float4(.5, .5, .0, .0);
-    p_turn[(Ngy-1)*Ngx + Ngx-1] = make_float4(.5, .0, .0, .5);  
-    */
     int idx_col_s[3] = {0, Ngx/3, 2*Ngx/3};
     int idx_col_e[3] = {Ngx/3, 2*Ngx/3, Ngx};
 
@@ -609,31 +585,6 @@ void evacuation_state_init(float4 *p_cnt, float *p_cap, uchar2 *h_tl, int Ngx, i
             p_cnt[idx].w = .5 * aver_per_cell * rand() / RAND_MAX;
         }
     }
-/*
-    // edge
-    int idx;
-    // first row
-    for(int c = 0; c < Ngx; c++){
-        p_cap[c] = MAX_CAP;
-        p_cnt[c] = make_float4(.0, .0, .0, .0);    
-    }
-    // left and right
-    for(int r = 0; r < Ngy; r++){
-        idx = r * Ngx + 0;
-        p_cap[idx] = MAX_CAP;
-        p_cnt[idx] = make_float4(.0, .0, .0, .0); 
-                
-        idx = r * Ngx + Ngx-1;
-        p_cap[idx] = MAX_CAP;
-        p_cnt[idx] = make_float4(.0, .0, .0, .0);               
-    }
-    // bottom
-    for(int c = 0; c < Ngx; c++){
-        idx = (Ngy-1)*Ngx + c;
-        p_cap[idx] = MAX_CAP;
-        p_cnt[idx] = make_float4(.0, .0, .0, .0);          
-    }    
-    */
     // traffic light information 
     for(int r = 0; r < Ngy; r++){
         for(int c = 0; c < Ngx; c++){
