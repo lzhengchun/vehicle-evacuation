@@ -242,10 +242,17 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
 
 /// 2nd step, process incoming vehicles, it will update outgoing requests of neighboors. 
     float4 diff_cap, diff_bk;                         // the capacity of incoming vehicles 
+    /*
     diff_cap.x = fmaxf(cap[uni_id]/4.f - cnt_temp.x, 0.f); // take max to avoid inproper initialization
     diff_cap.y = fmaxf(cap[uni_id]/4.f - cnt_temp.y, 0.f); 
     diff_cap.z = fmaxf(cap[uni_id]/4.f - cnt_temp.z, 0.f); 
     diff_cap.w = fmaxf(cap[uni_id]/4.f - cnt_temp.w, 0.f); 
+    */
+    diff_cap.x = cap[uni_id]/4.f - cnt_temp.x; // take max to avoid inproper initialization
+    diff_cap.y = cap[uni_id]/4.f - cnt_temp.y; 
+    diff_cap.z = cap[uni_id]/4.f - cnt_temp.z; 
+    diff_cap.w = cap[uni_id]/4.f - cnt_temp.w; 
+    
     diff_bk = diff_cap;                               // save the capacity for computing how many vehicles entered at the end
     // priority ? random
     // returns a random number between 0.0 and 1.0 following a uniform distribution.
