@@ -123,7 +123,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     // bool upd_f = g_idx >= 1 && g_idx <= Ngx-2 && g_idy >= 1 && g_idy <= Ngy-2;
     bool exit_flag = false;//SINK(g_idy, g_idx);
     
-    uchar2 tl_info = d_tl[uni_id];           	                 // traffic light information
+    uchar2 tl_info = d_tl[uni_id];           	                        // traffic light information
     bool tl_hor = (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y; // current traffic light
    
     float4 cnt_temp = p_vcnt_in[uni_id];
@@ -188,12 +188,12 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
             io[idy][CUDA_BLOCK_SIZE+1] = make_float4(0.f, 0.f, 0.f, 0.f);
         }
         io_bk[idy][CUDA_BLOCK_SIZE+1] = io[idy][CUDA_BLOCK_SIZE+1];
-        halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].w;        	 // will be used to computing how many vehicles get accepted by west cell
+        halo_sync[1][idy] = io[idy][CUDA_BLOCK_SIZE+1].w;        	     // will be used to computing how many vehicles get accepted by west cell
     }
 
-    if(threadIdx.y == 0){                                            // top halo
+    if(threadIdx.y == 0){                                                // top halo
         if(g_idy > 0){
-            tl_info = d_tl[uni_id-Ngx];                              // traffic light
+            tl_info = d_tl[uni_id-Ngx];                                  // traffic light
             float4 v_cnt = p_vcnt_in[uni_id-Ngx];
             if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
                 io[0][idx].x = 0.f;                                      // go north
@@ -218,13 +218,13 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
         if(g_idy < Ngy-1){
             tl_info = d_tl[uni_id+Ngx];                                  // traffic light
             float4 v_cnt = p_vcnt_in[uni_id+Ngx];
-            if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){  // horizontal light
+            if( (time_step - (int)tl_info.x) % TL_PERIOD < tl_info.y ){                // horizontal light
                 io[CUDA_BLOCK_SIZE+1][idx].x = 0.f;                                    // go north
                 io[CUDA_BLOCK_SIZE+1][idx].y = fminf(VEHICLE_PER_STEP, v_cnt.y);       // go east        
                 io[CUDA_BLOCK_SIZE+1][idx].z = 0.f;                                    // go south
                 io[CUDA_BLOCK_SIZE+1][idx].w = fminf(VEHICLE_PER_STEP, v_cnt.w);       // go west    
                 
-            }else{	                                                   // vertical light 
+            }else{	                                                                   // vertical light 
                 io[CUDA_BLOCK_SIZE+1][idx].x = fminf(VEHICLE_PER_STEP, v_cnt.x);       // go north
                 io[CUDA_BLOCK_SIZE+1][idx].y = 0.f;                                    // go east       
                 io[CUDA_BLOCK_SIZE+1][idx].z = fminf(VEHICLE_PER_STEP, v_cnt.z);       // go south
@@ -249,16 +249,15 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     __syncthreads();  
 
 /// 2nd step, process incoming vehicles, it will update outgoing requests of neighboors. 
-    float4 diff_cap, diff_bk;                         // the capacity of incoming vehicles 
-    diff_cap.x = fmaxf(cap[uni_id]/4.f - cnt_temp.x, 0.f); // take max to avoid inproper initialization
+    float4 diff_cap, diff_bk;                               // the capacity of incoming vehicles 
+    diff_cap.x = fmaxf(cap[uni_id]/4.f - cnt_temp.x, 0.f);  // take max to avoid inproper initialization
     diff_cap.y = fmaxf(cap[uni_id]/4.f - cnt_temp.y, 0.f); 
     diff_cap.z = fmaxf(cap[uni_id]/4.f - cnt_temp.z, 0.f); 
     diff_cap.w = fmaxf(cap[uni_id]/4.f - cnt_temp.w, 0.f); 
-    diff_bk = diff_cap;                               // save the capacity for computing how many vehicles entered at the end
+    diff_bk = diff_cap;                                     // save the capacity for computing how many vehicles entered at the end
     // priority ? random
     // returns a random number between 0.0 and 1.0 following a uniform distribution.
-    
-    float4 pturn_c = pturn[uni_id];                   // turn probabilities of the cell [i, j]
+    float4 pturn_c = pturn[uni_id];                         // turn probabilities of the cell [i, j]
     int rnd = (unsigned char)( curand_uniform(&states[uni_id])*24 ); 
     float4 in_distr;
     bool md_flg;
@@ -266,7 +265,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
     {
         switch(order[rnd][i])
         {
-            case 0:	                                  // enter from top 
+            case 0:	                                        // enter from top 
                 if(io[idy-1][idx].z > 0){           
                     in_distr = pturn_c * io[idy-1][idx].z;  // incoming distribution
                     md_flg = true;
@@ -274,7 +273,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                     md_flg = false;
                 }                                                                          
                 break;
-            case 1:                              // enter from left
+            case 1:                                         // enter from left
                 if(io[idy][idx-1].y > 0){           
                     in_distr = pturn_c * io[idy][idx-1].y;  // incoming distribution
                     md_flg = true;
@@ -282,7 +281,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                     md_flg = false;
                 }                                                                                          
                 break;
-            case 2:                              // enter from bottom
+            case 2:                                         // enter from bottom
                 if(io[idy+1][idx].x > 0){           
                     in_distr = pturn_c * io[idy+1][idx].x;  // incoming distribution
                     md_flg = true;
@@ -290,7 +289,7 @@ __global__ void evacuation_update(float4 *p_vcnt_in, float4 *p_vcnt_out, float *
                     md_flg = false;
                 }                                                                                        
                 break;
-            case 3:                              // enter from right
+            case 3:                              	        // enter from right
                 if(io[idy][idx+1].w > 0){           
                     in_distr = pturn_c * io[idy][idx+1].w;  // incoming distribution
                     md_flg = true;
@@ -468,9 +467,11 @@ void evacuation_cuda_finalize()
 /*
 ***********************************************************************************************************
 * func   name: evacuation_field_init
-* description: initialize the field, i.e., initialize all the turn probabilities 
+* description: initialize all the turn probabilities
 * parameters :
-*             none
+*             p_turn: pointer to the turn probabilities
+*             Ngx   : map size, X dimension
+*             Ngy   : map size, Y dimension
 * return: none
 ***********************************************************************************************************
 */
@@ -549,7 +550,17 @@ void evacuation_field_init(float4 *p_turn, int Ngx, int Ngy)
         }
     }    
 }
-
+/*
+***********************************************************************************************************
+* func   name: turn_prob_verify
+* description: verify turn probabilities, turn probabilities must sum to 1.0 in each cell
+* parameters :
+*             p_turn: pointer to the turn probabilities
+*             Ngx   : map size, X dimension
+*             Ngy   : map size, Y dimension
+* return: none
+***********************************************************************************************************
+*/
 bool turn_prob_verify(float4 *p_turn, int Ngx, int Ngy){
     for(int r=0; r<Ngy; r++){
         for(int c=0; c<Ngx; c++){
@@ -562,12 +573,17 @@ bool turn_prob_verify(float4 *p_turn, int Ngx, int Ngy){
     }
     return true;
 }
+
 /*
 ***********************************************************************************************************
 * func   name: evacuation_state_init
 * description: initialize the state, i.e., initialize number of vehicles in each of the cells, and capacity 
 * parameters :
-*             none
+*             p_cnt : pointer to the turn probabilities
+*             p_cap : pointer to capacity of each cell
+*             h_tl  : traffic light configuration, .x -> offset, .y -> time steps for horizontal direction
+*             Ngx   : map size, X dimension
+*             Ngy   : map size, Y dimension
 * return: none
 ***********************************************************************************************************
 */
@@ -670,7 +686,7 @@ int main()
     evacuation_field_init(h_turn, Ngx, Ngy);	      // initialize turn probabilities (the field) 
     evacuation_state_init(h_vcnt, h_vcap, h_tlinfo, Ngx, Ngy);  // initialize vehicle counters and cell capacity
     if(!turn_prob_verify(h_turn, Ngx, Ngy)){
-        cout << "error" << endl;
+        cout << "error, at least one of your turn probabilities is invalid, i.e., did not sum to 1.0" << endl;
         exit(-1);
     }
     // device memory for counter (as input), counter (as output), turn probabilities, temporary for swaping
