@@ -28,16 +28,16 @@
 #define TL_PERIOD          10                          // traffic light period, # of steps, must be integer
 #define SINK(r, c)         ((r>225 && r<235 && c>25 && c<35) || (r>225 && r<235 && c>265 && c<275) )
 
-#define cudaErrchk(ans)  cudaAssert((ans), __FILE__, __LINE__); 
+using namespace std;
 
-inline void cudaAssert(cudaError_t code, char *file, int line){
+#define cudaErrchk(ans)  cudaAssert((ans), __FILE__, __LINE__) 
+inline void cudaAssert(cudaError_t code, string file, int line){
     if (code != cudaSuccess){
-        fprintf(stderr,"CUDA Error: %s; file: %s, line: %d\n", cudaGetErrorString(code), file, line);
+        cerr << "CUDA Error: %s; file: %s, line: %d\n", cudaGetErrorString(code), file, line);
         exit(-1);
     }
 }
 
-using namespace std;
 /*
 ***********************************************************************************************************
 * 
@@ -687,7 +687,6 @@ int main()
     int Ngx = ENV_DIM_X + 0, Ngy = ENV_DIM_Y + 0;
     // this device memory is used for sync block halo, i.e., halo evacuation
     float *d_helper;                                  // order: north -> east -> south -> west
-    cudaError_t cuda_error;
     float4 *h_vcnt   = new float4[Ngx*Ngy]();         // host memory for vehicle counter
     float *h_vcap    = new float[Ngx*Ngy]();          // host memory for vehicle capacity in each of the cells
     float4 *h_turn   = new float4[Ngx*Ngy]();         // host memory for turn probabilities
@@ -762,11 +761,7 @@ int main()
         d_vcnt_out = p_swap;
     }
     cudaThreadSynchronize();
-    cudaErrchk( cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_in, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }  
+    cudaErrchk( cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_in, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost) );
     write_vehicle_cnt_info(N_ITER, h_vcnt, Ngx, Ngy);
     
     delete h_vcnt;
