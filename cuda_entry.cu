@@ -28,11 +28,11 @@
 #define TL_PERIOD          10                          // traffic light period, # of steps, must be integer
 #define SINK(r, c)         ((r>225 && r<235 && c>25 && c<35) || (r>225 && r<235 && c>265 && c<275) )
 
-#define cudaErrchk(ans) { cudaAssert((ans), __FILE__, __LINE__); }
+#define cudaErrchk(ans)  cudaAssert((ans), __FILE__, __LINE__); 
 
-inline void cudaAssert(cudaError_t code, char *file, int line, bool abort=true){
+inline void cudaAssert(cudaError_t code, char *file, int line){
     if (code != cudaSuccess){
-        fprintf(stderr,"CUDA Error: %s %s %d\n", cudaGetErrorString(code), file, line);
+        fprintf(stderr,"CUDA Error: %s; file: %s, line: %d\n", cudaGetErrorString(code), file, line);
         exit(-1);
     }
 }
