@@ -28,6 +28,15 @@
 #define TL_PERIOD          10                          // traffic light period, # of steps, must be integer
 #define SINK(r, c)         ((r>225 && r<235 && c>25 && c<35) || (r>225 && r<235 && c>265 && c<275) )
 
+#define cudaErrchk(ans) { cudaAssert((ans), __FILE__, __LINE__); }
+
+inline void cudaAssert(cudaError_t code, char *file, int line, bool abort=true){
+    if (code != cudaSuccess){
+        fprintf(stderr,"CUDA Error: %s %s %d\n", cudaGetErrorString(code), file, line);
+        exit(-1);
+    }
+}
+
 using namespace std;
 /*
 ***********************************************************************************************************
@@ -696,89 +705,36 @@ int main()
     dim3 dimBlock(CUDA_BLOCK_SIZE, CUDA_BLOCK_SIZE, 1);
     dim3 dimGrid(ceil((float)Ngx/CUDA_BLOCK_SIZE), ceil((float)Ngy/CUDA_BLOCK_SIZE), 1);
     // allocate device memory for vehicle counters as input
-    cuda_error = cudaMalloc((void**)&d_vcnt_in, sizeof(float4)*Ngx*Ngy);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }    
+    cudaErrchk( cudaMalloc((void**)&d_vcnt_in, sizeof(float4)*Ngx*Ngy) );  
     // allocate device memory for vehicle counters as output
-    cuda_error = cudaMalloc((void**)&d_vcnt_out, sizeof(float4)*Ngx*Ngy);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }
+    cudaErrchk( cudaMalloc((void**)&d_vcnt_out, sizeof(float4)*Ngx*Ngy) );
     // allocate device memory for storing cell capacity information
-    cuda_error = cudaMalloc((void**)&d_vcap, sizeof(float)*Ngx*Ngy);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }
+    cudaErrchk( cudaMalloc((void**)&d_vcap, sizeof(float)*Ngx*Ngy) );
     // allocate device memory for saving vehicle turn probabilities
-    cuda_error = cudaMalloc((void**)&d_turn, sizeof(float4)*Ngx*Ngy);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }     
+    cudaErrchk( cudaMalloc((void**)&d_turn, sizeof(float4)*Ngx*Ngy) );   
     // allocate device memory for saving traffic light configuration
-    cuda_error = cudaMalloc((void**)&d_tlinfo, sizeof(uchar2)*Ngx*Ngy);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }     
+    cudaErrchk( cudaMalloc((void**)&d_tlinfo, sizeof(uchar2)*Ngx*Ngy) );    
     // initialize random state
     curandState_t* curand_states;
     int nthread = Ngx * Ngy;           // just keep the same as the number of cells
     // allocate space on the GPU for the random states 
-    cuda_error = cudaMalloc((void**) &curand_states, nthread * sizeof(curandState_t));
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }    
+    cudaErrchk( cudaMalloc((void**) &curand_states, nthread * sizeof(curandState_t)) );    
     // Launch configuration:  
     // invoke the GPU to initialize all of the random states 
     curand_init_all<<<dimGrid, dimBlock>>>(time(0), curand_states, Ngx, Ngy);
-    cuda_error = cudaThreadSynchronize();
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaThreadSynchronize, random initialize: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }    
+    cudaErrchk( cudaThreadSynchronize() );   
     // copy counter initial values from host to device
-    cuda_error = cudaMemcpy((void *)d_vcnt_in, (void *)h_vcnt, sizeof(float4)*Ngx*Ngy, cudaMemcpyHostToDevice);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }  
-    cuda_error = cudaMemcpy((void *)d_vcnt_out, (void *)d_vcnt_in, sizeof(float4)*Ngx*Ngy, cudaMemcpyDeviceToDevice);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    } 
+    cudaErrchk( cudaMemcpy((void *)d_vcnt_in, (void *)h_vcnt, sizeof(float4)*Ngx*Ngy, cudaMemcpyHostToDevice) );
+    cudaErrchk( cudaMemcpy((void *)d_vcnt_out, (void *)d_vcnt_in, sizeof(float4)*Ngx*Ngy, cudaMemcpyDeviceToDevice) );
     // copy cell capacity information from host to device
-    cuda_error = cudaMemcpy((void *)d_vcap, (void *)h_vcap, sizeof(float)*Ngx*Ngy, cudaMemcpyHostToDevice);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }  
+    cudaErrchk( cudaMemcpy((void *)d_vcap, (void *)h_vcap, sizeof(float)*Ngx*Ngy, cudaMemcpyHostToDevice) );
     // copy vehicle turn probabilities from host to device
-    cuda_error = cudaMemcpy((void *)d_turn, (void *)h_turn, sizeof(float4)*Ngx*Ngy, cudaMemcpyHostToDevice);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }    
+    cudaErrchk( cudaMemcpy((void *)d_turn, (void *)h_turn, sizeof(float4)*Ngx*Ngy, cudaMemcpyHostToDevice) );  
     // copy traffic light configuration from host to device
-    cuda_error = cudaMemcpy((void *)d_tlinfo, (void *)h_tlinfo, sizeof(uchar2)*Ngx*Ngy, cudaMemcpyHostToDevice);
-    if (cuda_error != cudaSuccess){
-        cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }         
+    cudaErrchk( cudaMemcpy((void *)d_tlinfo, (void *)h_tlinfo, sizeof(uchar2)*Ngx*Ngy, cudaMemcpyHostToDevice) );       
     int helper_size = 4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y * sizeof(float);
     // allocate device memory to synchronizing block border counters
-    cuda_error = cudaMalloc((void**)&d_helper, helper_size);
-    if (cuda_error != cudaSuccess)
-    {
-        cout << "CUDA error in cudaMalloc: " << cudaGetErrorString(cuda_error) << endl;
-        exit(-1);
-    }
+    cudaErrchk( cudaMalloc((void**)&d_helper, helper_size) );
     // allocate host memory for checking (debug) thread block border synchronizing operation
     float *h_halo_sync = new float[4 * CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y]();
     cudaMemcpy((void *)d_helper, (void *)h_halo_sync, 4*CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyHostToDevice);
@@ -788,32 +744,16 @@ int main()
     
     for(int i = 0; i < N_ITER; i++){
         evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, d_tlinfo, Ngx, Ngy, d_helper, i, curand_states);
-        cuda_error = cudaThreadSynchronize();
-        if (cuda_error != cudaSuccess){
-            cout << "CUDA error in cudaThreadSynchronize, update: " << cudaGetErrorString(cuda_error) << endl;
-            exit(-1);
-        } 
+        cudaErrchk( cudaThreadSynchronize() );
 	    // synchronizing thread block (subdomain) border counters
         evacuation_halo_sync<<<dimGrid, dimBlock>>>(d_vcnt_out, Ngx, Ngy, d_helper);
-        cuda_error = cudaThreadSynchronize();
-        if (cuda_error != cudaSuccess){
-            cout << "CUDA error in cudaThreadSynchronize, sync halo: " << cudaGetErrorString(cuda_error) << endl;
-            exit(-1);
-        } 
+        cudaErrchk( cudaThreadSynchronize() );
         if((i+1)%400 == 0) {
-            cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_out, sizeof(float4)*Ngx*Ngy, cudaMemcpyDeviceToHost);
-            if (cuda_error != cudaSuccess){
-                cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
-                exit(-1);
-            }  
+            cudaErrchk( cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_out, sizeof(float4)*Ngx*Ngy, cudaMemcpyDeviceToHost) ); 
             write_vehicle_cnt_info(i+1, h_vcnt, Ngx, Ngy);
             // for debug           
             /*
-            cuda_error = cudaMemcpy((void *)h_halo_sync, (void *)d_helper, 4*CUDA_BLOCK_SIZE*dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyDeviceToHost);
-            if (cuda_error != cudaSuccess){
-                cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
-                exit(-1);
-            }              
+            cudaErrchk( cudaMemcpy((void *)h_halo_sync, (void *)d_helper, 4*CUDA_BLOCK_SIZE*dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyDeviceToHost) );             
             write_halo_sync(i+1, h_halo_sync, dimGrid.x * dimGrid.y);    
             */      
         }
@@ -822,7 +762,7 @@ int main()
         d_vcnt_out = p_swap;
     }
     cudaThreadSynchronize();
-    cuda_error = cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_in, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost);
+    cudaErrchk( cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_in, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost);
     if (cuda_error != cudaSuccess){
         cout << "CUDA error in cudaMemcpy: " << cudaGetErrorString(cuda_error) << endl;
         exit(-1);
