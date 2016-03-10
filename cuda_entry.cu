@@ -759,7 +759,7 @@ int main()
     cudaMemcpy((void *)d_helper, (void *)h_halo_sync, 4*CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyHostToDevice);
     // config to use more shared memory, less L1 cache
     cudaFuncSetCacheConfig(evacuation_update, cudaFuncCachePreferShared);
-    write_vehicle_cnt_info(0, h_vcnt, Ngx, Ngy);  // initial state, text file 
+    //write_vehicle_cnt_info(0, h_vcnt, Ngx, Ngy);  // initial state, text file 
     write_vehicle_cnt_info_bin(0, h_vcnt, Ngx, Ngy);  // initial state, binary file
     
     for(int i = 0; i < N_ITER; i++){
