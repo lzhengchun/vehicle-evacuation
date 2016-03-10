@@ -23,7 +23,7 @@
 #define ENV_DIM_X          300
 #define ENV_DIM_Y          300
 #define INIT_CARS          50000.f
-#define N_ITER             2400 //30400
+#define N_ITER             30400
 #define MAX_CAP            4.f
 #define TL_PERIOD          10                          // traffic light period, # of steps, must be integer
 #define SINK(r, c)         ((r>225 && r<235 && c>25 && c<35) || (r>225 && r<235 && c>265 && c<275) )
@@ -759,7 +759,8 @@ int main()
     cudaMemcpy((void *)d_helper, (void *)h_halo_sync, 4*CUDA_BLOCK_SIZE * dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyHostToDevice);
     // config to use more shared memory, less L1 cache
     cudaFuncSetCacheConfig(evacuation_update, cudaFuncCachePreferShared);
-    write_vehicle_cnt_info(0, h_vcnt, Ngx, Ngy);  // initial state
+    write_vehicle_cnt_info(0, h_vcnt, Ngx, Ngy);  // initial state, text file 
+    write_vehicle_cnt_info_bin(0, h_vcnt, Ngx, Ngy);  // initial state, binary file
     
     for(int i = 0; i < N_ITER; i++){
         evacuation_update<<<dimGrid, dimBlock>>>(d_vcnt_in, d_vcnt_out, d_vcap, d_turn, d_tlinfo, Ngx, Ngy, d_helper, i, curand_states);
@@ -783,7 +784,7 @@ int main()
     }
     cudaThreadSynchronize();
     cudaErrchk( cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_in, sizeof(float)*Ngx*Ngy, cudaMemcpyDeviceToHost) );
-    write_vehicle_cnt_info(N_ITER, h_vcnt, Ngx, Ngy);
+    //write_vehicle_cnt_info(N_ITER, h_vcnt, Ngx, Ngy);
     
     delete h_vcnt;
     delete h_vcap;
