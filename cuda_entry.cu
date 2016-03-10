@@ -659,7 +659,7 @@ void write_vehicle_cnt_info_bin(int time_step, float4 * p_vcnt, int Ngx, int Ngy
 {
     ofstream output_file;
     char filename[100];
-    sprintf( filename, "vehicle-cnt-info-ts-%d.txt", time_step);
+    sprintf( filename, "vehicle-cnt-info-ts-%d.bin", time_step);
     output_file.open(filename, iostream::binary);
     int f_header[2] = {Ngx, Ngy};
     output_file.write((char*)f_header, sizeof(f_header)); 
