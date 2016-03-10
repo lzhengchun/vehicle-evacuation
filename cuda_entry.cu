@@ -23,7 +23,7 @@
 #define ENV_DIM_X          300
 #define ENV_DIM_Y          300
 #define INIT_CARS          50000.f
-#define N_ITER             30400
+#define N_ITER             2400 //30400
 #define MAX_CAP            4.f
 #define TL_PERIOD          10                          // traffic light period, # of steps, must be integer
 #define SINK(r, c)         ((r>225 && r<235 && c>25 && c<35) || (r>225 && r<235 && c>265 && c<275) )
@@ -648,6 +648,26 @@ void write_vehicle_cnt_info(int time_step, float4 * p_vcnt, int Ngx, int Ngy)
 }
 /*
 ***********************************************************************************************************
+* func   name: write_vehicle_cnt_info_bin
+* description: write results to file for visualizing (with binary)
+* parameters :
+*             none
+* return: none
+***********************************************************************************************************
+*/
+void write_vehicle_cnt_info_bin(int time_step, float4 * p_vcnt, int Ngx, int Ngy)
+{
+    ofstream output_file;
+    char filename[100];
+    sprintf( filename, "vehicle-cnt-info-ts-%d.txt", time_step);
+    output_file.open(filename, iostream::binary);
+    int f_header[2] = {Ngx, Ngy};
+    output_file.write(f_header, sizeof(int) * sizeof(f_header)); 
+    output_file.write(p_vcnt, sizeof(float4) * Ngx * Ngy);    
+    output_file.close();
+}
+/*
+***********************************************************************************************************
 * func   name: write_halo_sync
 * description: write halo sync to file for debug
 * parameters :
@@ -749,7 +769,8 @@ int main()
         cudaErrchk( cudaThreadSynchronize() );
         if((i+1)%400 == 0) {
             cudaErrchk( cudaMemcpy((void *)h_vcnt, (void *)d_vcnt_out, sizeof(float4)*Ngx*Ngy, cudaMemcpyDeviceToHost) ); 
-            write_vehicle_cnt_info(i+1, h_vcnt, Ngx, Ngy);
+            //write_vehicle_cnt_info(i+1, h_vcnt, Ngx, Ngy);
+            write_vehicle_cnt_info_bin(i+1, h_vcnt, Ngx, Ngy);
             // for debug           
             /*
             cudaErrchk( cudaMemcpy((void *)h_halo_sync, (void *)d_helper, 4*CUDA_BLOCK_SIZE*dimGrid.x * dimGrid.y * sizeof(float), cudaMemcpyDeviceToHost) );             
