@@ -1,6 +1,6 @@
 **This is NOT a released version, currently only for developing purpose**
 # vehicle-evacuation
-a CUDA implementation of vehicle evacuation model
+a CUDA implementation of vehicle evacuation model. This implementation can be used as an example of using CUDA to implement an (location aware) Agent-based model. 
 
 #sample-1
 
